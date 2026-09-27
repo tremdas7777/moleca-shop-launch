@@ -1,0 +1,39 @@
+import { CreditCard, QrCode, ShieldCheck, Truck } from "lucide-react";
+import { store } from "@/lib/store";
+
+const benefits = [
+  {
+    icon: Truck,
+    title: "Frete grátis",
+    text: `Acima de R$ ${store.freeShippingFrom} (Sul e Sudeste)`,
+  },
+  {
+    icon: QrCode,
+    title: `${store.pixDiscount * 100}% off no Pix`,
+    text: "Desconto aplicado no checkout",
+  },
+  {
+    icon: CreditCard,
+    title: `Até ${store.installments}x no cartão`,
+    text: "Visa, Mastercard, Elo e Amex",
+  },
+  { icon: ShieldCheck, title: "Compra 100% segura", text: "Certificado SSL e dados protegidos" },
+];
+
+export function Benefits() {
+  return (
+    <section className="border-b border-neutral-200 bg-white">
+      <ul className="container mx-auto grid grid-cols-2 divide-neutral-200 px-4 lg:grid-cols-4 lg:divide-x">
+        {benefits.map(({ icon: Icon, title, text }) => (
+          <li key={title} className="flex items-center gap-3 py-4 lg:justify-center">
+            <Icon className="h-7 w-7 shrink-0 text-neutral-800" strokeWidth={1.25} />
+            <div className="leading-tight">
+              <p className="text-[13px] font-bold uppercase">{title}</p>
+              <p className="text-xs text-neutral-500">{text}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
