@@ -1,15 +1,19 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/lib/cart";
 import { formatBRL, installmentValue, pixPrice } from "@/lib/format";
 import { kitProducts, store } from "@/lib/store";
+import { createZedyStoreCheckout } from "@/lib/zedy-server";
 import { ProductImage } from "./ProductImage";
 
 export function CartSheet() {
   const { items, total, open, setOpen, setQuantity, remove } = useCart();
+  const [busy, setBusy] = useState(false);
 
-  const checkoutMessage = encodeURIComponent(
+  const whatsappMessage = encodeURIComponent(
     [
       `Olá! Quero finalizar meu pedido na ${store.name}:`,
       ...items.flatMap((i) => [
@@ -19,6 +23,30 @@ export function CartSheet() {
       `Total: ${formatBRL(total)}`,
     ].join("\n"),
   );
+
+  const checkout = async () => {
+    if (busy || !items.length) return;
+    setBusy(true);
+    try {
+      const result = await createZedyStoreCheckout({
+        data: { items: items.map((i) => ({ id: i.product.id, quantity: i.quantity })) },
+      });
+      if (result.ok) {
+        window.location.href = result.checkoutUrl;
+        return;
+      }
+      if (result.reason === "not_configured") {
+        window.location.href = `https://wa.me/${store.whatsapp}?text=${whatsappMessage}`;
+      } else if (result.missing?.length) {
+        toast.error(`Indisponível no momento: ${result.missing.slice(0, 3).join(", ")}`);
+      } else {
+        toast.error(result.error);
+      }
+    } catch {
+      toast.error("Não foi possível abrir o checkout. Tente novamente.");
+    }
+    setBusy(false);
+  };
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -92,14 +120,17 @@ export function CartSheet() {
                   ou {store.installments}x de {formatBRL(installmentValue(total))} no cartão
                 </p>
               </div>
-              <a
-                href={`https://wa.me/${store.whatsapp}?text=${checkoutMessage}`}
-                target="_blank"
-                rel="noreferrer"
-                className="block w-full bg-primary py-3.5 text-center text-[13px] font-bold uppercase tracking-wider text-white hover:bg-primary/90"
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void checkout()}
+                className="block w-full bg-primary py-3.5 text-center text-[13px] font-bold uppercase tracking-wider text-white hover:bg-primary/90 disabled:opacity-60"
               >
-                Finalizar compra
-              </a>
+                {busy ? "Abrindo checkout…" : "Finalizar compra"}
+              </button>
+              <p className="text-center text-[11px] text-muted-foreground">
+                Frete e pagamento são finalizados no checkout seguro.
+              </p>
               <button
                 onClick={() => setOpen(false)}
                 className="block w-full py-2 text-center text-[13px] font-semibold text-neutral-600 underline"

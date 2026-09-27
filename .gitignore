@@ -15,6 +15,10 @@ dist-ssr
 .tanstack/**
 .nitro
 *.local
+.env
+.env.*
+!.env.example
+.shopify-export/
 
 # Wrangler / Cloudflare
 .wrangler/
@@ -30,3 +34,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+kazza-produtos-shopify.csv
