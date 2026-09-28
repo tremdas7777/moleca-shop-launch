@@ -8,6 +8,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import type { Product } from "@/lib/store";
+import { FeaturedKitCard } from "./FeaturedKitCard";
 import { ProductCard } from "./ProductCard";
 
 export function ProductShelf({
@@ -15,11 +16,13 @@ export function ProductShelf({
   title,
   products,
   layout = "carousel",
+  featured,
 }: {
   id?: string | undefined;
   title: string;
   products: Product[];
   layout?: "carousel" | "grid";
+  featured?: Product | undefined;
 }) {
   const [api, setApi] = useState<CarouselApi>();
   const [canPrev, setCanPrev] = useState(false);
@@ -81,6 +84,7 @@ export function ProductShelf({
 
       {layout === "grid" ? (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {featured && <FeaturedKitCard kit={featured} className="col-span-2 sm:row-span-2" />}
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

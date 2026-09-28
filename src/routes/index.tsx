@@ -6,7 +6,7 @@ import { HeroBanner } from "@/components/store/HeroBanner";
 import { KitShowcase } from "@/components/store/KitShowcase";
 import { ProductCard } from "@/components/store/ProductCard";
 import { ProductShelf } from "@/components/store/ProductShelf";
-import { categories, products, productsByCategory } from "@/lib/store";
+import { categories, kits, products, productsByCategory } from "@/lib/store";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>): { busca?: string } => {
@@ -63,6 +63,7 @@ function Index() {
           title="Mais vendidos"
           layout="grid"
           products={products.filter((p) => p.bestSeller)}
+          featured={kits[0]}
         />
         <KitShowcase />
         <CategoryGrid />
