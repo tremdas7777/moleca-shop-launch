@@ -110,7 +110,7 @@ function ProductPage() {
               onClick={() => add(product.id, quantity)}
               className="h-12 flex-1 bg-primary text-sm font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-900"
             >
-              {items.length > 0 ? "Comprar kit" : "Comprar"}
+              Comprar agora
             </button>
           </div>
 
