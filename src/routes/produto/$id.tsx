@@ -84,7 +84,7 @@ function ProductPage() {
             )}
             <p className="text-sm text-neutral-600">
               {product.hasVariants && "A partir de "}
-              <span className="text-4xl font-bold text-neutral-900">{formatBRL(finalPrice)}</span>
+              <span className="text-4xl font-bold text-pix">{formatBRL(finalPrice)}</span>
             </p>
           </div>
 

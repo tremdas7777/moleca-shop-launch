@@ -57,7 +57,7 @@ function KitCard({ kit }: { kit: Product }) {
             <p className="text-xs text-neutral-500">
               Separados: <span className="line-through">{formatBRL(separate)}</span>
             </p>
-            <p className="text-3xl font-bold text-neutral-900">{formatBRL(finalPrice)}</p>
+            <p className="text-3xl font-bold text-pix">{formatBRL(finalPrice)}</p>
           </div>
           {savings > 0 && (
             <p className="bg-pix/10 px-3 py-1.5 text-sm font-bold text-pix">

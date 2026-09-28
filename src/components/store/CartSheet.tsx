@@ -68,7 +68,7 @@ export function CartSheet() {
                 </div>
                 <div className="flex flex-1 flex-col gap-2">
                   <p className="text-sm font-medium leading-tight">{product.name}</p>
-                  <p className="text-sm font-bold">
+                  <p className="text-sm font-bold text-pix">
                     {formatBRL((product.salePrice ?? product.price) * quantity)}
                   </p>
                   <div className="flex items-center gap-2">
@@ -112,7 +112,7 @@ export function CartSheet() {
             <div className="w-full space-y-3">
               <div className="flex items-baseline justify-between">
                 <span className="text-sm text-muted-foreground">Total</span>
-                <span className="text-xl font-bold">{formatBRL(total)}</span>
+                <span className="text-xl font-bold text-pix">{formatBRL(total)}</span>
               </div>
               <button
                 type="button"

@@ -40,7 +40,7 @@ export function ProductCard({ product }: { product: Product }) {
           </p>
           <p className="text-[13px] text-neutral-600">
             {product.hasVariants && "A partir de "}
-            <span className="text-lg font-bold text-neutral-900">{formatBRL(finalPrice)}</span>
+            <span className="text-lg font-bold text-pix">{formatBRL(finalPrice)}</span>
           </p>
         </div>
 
