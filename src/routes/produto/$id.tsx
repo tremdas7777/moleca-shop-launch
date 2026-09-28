@@ -55,7 +55,7 @@ function ProductPage() {
           Início
         </Link>
         <ChevronRight className="h-3 w-3" />
-        <Link to="/" hash={category?.id ?? "kits"} className="hover:text-neutral-900">
+        <Link to="/" hash={category?.id ?? "ofertas"} className="hover:text-neutral-900">
           {category?.name ?? "Kits"}
         </Link>
         <ChevronRight className="h-3 w-3" />

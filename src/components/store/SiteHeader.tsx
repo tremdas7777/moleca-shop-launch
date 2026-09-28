@@ -33,7 +33,7 @@ export function Logo({ inverted }: { inverted?: boolean }) {
 
 const navLinks = [
   ...categories.map((c) => ({ hash: c.id, name: c.name })),
-  { hash: "kits", name: "Kits" },
+  { hash: "ofertas", name: "Kits" },
 ];
 
 function AnnouncementBar() {

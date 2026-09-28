@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Benefits } from "@/components/store/Benefits";
 import { CategoryGrid } from "@/components/store/CategoryGrid";
 import { HeroBanner } from "@/components/store/HeroBanner";
-import { KitShowcase } from "@/components/store/KitShowcase";
 import { ProductCard } from "@/components/store/ProductCard";
 import { ProductShelf } from "@/components/store/ProductShelf";
 import { categories, kits, products, productsByCategory } from "@/lib/store";
@@ -65,7 +64,6 @@ function Index() {
           products={products.filter((p) => p.bestSeller)}
           featured={kits[0]}
         />
-        <KitShowcase />
         <CategoryGrid />
         {categories.map((c) => (
           <ProductShelf key={c.id} id={c.id} title={c.name} products={productsByCategory(c.id)} />
