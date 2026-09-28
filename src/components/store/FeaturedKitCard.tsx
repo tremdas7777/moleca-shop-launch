@@ -63,7 +63,7 @@ export function FeaturedKitCard({ kit, className }: { kit: Product; className?: 
           onClick={() => add(kit.id)}
           className="mt-4 w-full bg-primary py-3.5 text-[13px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-900"
         >
-          Comprar kit
+          Comprar agora
         </button>
       </div>
     </article>
