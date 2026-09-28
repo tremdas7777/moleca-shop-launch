@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
-import { ChevronRight, CreditCard, Minus, Plus, QrCode, ShieldCheck, Truck } from "lucide-react";
+import { ChevronRight, Minus, Plus, ShieldCheck, Truck } from "lucide-react";
 import { ProductImage } from "@/components/store/ProductImage";
 import { ProductShelf } from "@/components/store/ProductShelf";
 import { useCart } from "@/lib/cart";
-import { formatBRL, installmentValue, pixPrice } from "@/lib/format";
+import { formatBRL } from "@/lib/format";
 import { categories, kitProducts, products, productsByCategory, store } from "@/lib/store";
 
 export const Route = createFileRoute("/produto/$id")({
@@ -26,12 +26,7 @@ export const Route = createFileRoute("/produto/$id")({
 });
 
 const perks = [
-  {
-    icon: Truck,
-    text: `Frete grátis acima de ${formatBRL(store.freeShippingFrom)} (Sul e Sudeste)`,
-  },
-  { icon: QrCode, text: `${store.pixDiscount * 100}% de desconto pagando no Pix` },
-  { icon: CreditCard, text: `Parcele em até ${store.installments}x no cartão` },
+  { icon: Truck, text: "Frete grátis para todo o Brasil" },
   { icon: ShieldCheck, text: "Compra 100% segura" },
 ];
 
@@ -90,12 +85,6 @@ function ProductPage() {
             <p className="text-sm text-neutral-600">
               {product.hasVariants && "A partir de "}
               <span className="text-4xl font-bold text-neutral-900">{formatBRL(finalPrice)}</span>
-            </p>
-            <p className="text-sm text-neutral-500">
-              ou {store.installments}x de {formatBRL(installmentValue(finalPrice))} no cartão
-            </p>
-            <p className="text-base font-semibold text-pix">
-              {formatBRL(pixPrice(finalPrice))} no Pix
             </p>
           </div>
 

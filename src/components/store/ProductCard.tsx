@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useCart } from "@/lib/cart";
-import { formatBRL, installmentValue, pixPrice } from "@/lib/format";
-import { store, type Product } from "@/lib/store";
+import { formatBRL } from "@/lib/format";
+import type { Product } from "@/lib/store";
 import { ProductImage } from "./ProductImage";
 
 const buttonClass =
@@ -42,10 +42,6 @@ export function ProductCard({ product }: { product: Product }) {
             {product.hasVariants && "A partir de "}
             <span className="text-lg font-bold text-neutral-900">{formatBRL(finalPrice)}</span>
           </p>
-          <p className="text-xs text-neutral-500">
-            {store.installments}x de {formatBRL(installmentValue(finalPrice))}
-          </p>
-          <p className="text-xs font-semibold text-pix">{formatBRL(pixPrice(finalPrice))} no Pix</p>
         </div>
 
         {product.hasVariants ? (

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useCart } from "@/lib/cart";
-import { formatBRL, installmentValue, pixPrice } from "@/lib/format";
-import { kitProducts, kits, store, type Product } from "@/lib/store";
+import { formatBRL } from "@/lib/format";
+import { kitProducts, kits, type Product } from "@/lib/store";
 import { ProductImage } from "./ProductImage";
 
 function KitCard({ kit }: { kit: Product }) {
@@ -58,12 +58,6 @@ function KitCard({ kit }: { kit: Product }) {
               Separados: <span className="line-through">{formatBRL(separate)}</span>
             </p>
             <p className="text-3xl font-bold text-neutral-900">{formatBRL(finalPrice)}</p>
-            <p className="text-xs text-neutral-500">
-              {store.installments}x de {formatBRL(installmentValue(finalPrice))}
-            </p>
-            <p className="text-sm font-semibold text-pix">
-              {formatBRL(pixPrice(finalPrice))} no Pix
-            </p>
           </div>
           {savings > 0 && (
             <p className="bg-pix/10 px-3 py-1.5 text-sm font-bold text-pix">

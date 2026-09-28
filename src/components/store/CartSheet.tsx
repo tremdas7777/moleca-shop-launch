@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/lib/cart";
-import { formatBRL, installmentValue, pixPrice } from "@/lib/format";
+import { formatBRL } from "@/lib/format";
 import { kitProducts, store } from "@/lib/store";
 import { createZedyStoreCheckout } from "@/lib/zedy-server";
 import { ProductImage } from "./ProductImage";
@@ -113,12 +113,6 @@ export function CartSheet() {
               <div className="flex items-baseline justify-between">
                 <span className="text-sm text-muted-foreground">Total</span>
                 <span className="text-xl font-bold">{formatBRL(total)}</span>
-              </div>
-              <div className="text-right text-xs">
-                <p className="font-semibold text-pix">{formatBRL(pixPrice(total))} no Pix</p>
-                <p className="text-muted-foreground">
-                  ou {store.installments}x de {formatBRL(installmentValue(total))} no cartão
-                </p>
               </div>
               <button
                 type="button"

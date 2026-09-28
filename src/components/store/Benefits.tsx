@@ -1,20 +1,19 @@
 import { CreditCard, QrCode, ShieldCheck, Truck } from "lucide-react";
-import { store } from "@/lib/store";
 
 const benefits = [
   {
     icon: Truck,
     title: "Frete grátis",
-    text: `Acima de R$ ${store.freeShippingFrom} (Sul e Sudeste)`,
+    text: "Para todo o Brasil",
   },
   {
     icon: QrCode,
-    title: `${store.pixDiscount * 100}% off no Pix`,
-    text: "Desconto aplicado no checkout",
+    title: "Pague com Pix",
+    text: "Aprovação na hora",
   },
   {
     icon: CreditCard,
-    title: `Até ${store.installments}x no cartão`,
+    title: "Cartão de crédito",
     text: "Visa, Mastercard, Elo e Amex",
   },
   { icon: ShieldCheck, title: "Compra 100% segura", text: "Certificado SSL e dados protegidos" },

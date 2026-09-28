@@ -6,10 +6,6 @@ export const store = {
   phone: "(11) 99999-9999",
   whatsapp: "5511999999999",
   hours: "Segunda à Sexta 08:00 - 17:00",
-  installments: 12,
-  monthlyInterest: 0.0199,
-  pixDiscount: 0.05,
-  freeShippingFrom: 299,
   company: "Kazza Car Care LTDA",
   cnpj: "00.000.000/0001-00",
   address: "Rua Exemplo, 123 - São Paulo/SP",
@@ -18,9 +14,9 @@ export const store = {
 };
 
 export const announcements = [
-  `Frete grátis acima de R$ ${store.freeShippingFrom} para Sul e Sudeste`,
-  `${store.pixDiscount * 100}% de desconto pagando no Pix`,
-  `Parcele em até ${store.installments}x no cartão`,
+  "Frete grátis para todo o Brasil",
+  "Até 50% OFF em toda a loja",
+  "Compra 100% segura",
 ];
 
 export type CategoryId = "lavagem" | "polimento" | "protecao" | "interior" | "acessorios";
@@ -322,7 +318,7 @@ const catalog: Product[] = [
   },
   {
     id: "kit-basico",
-    name: "Kit Básico Kazza: Lavagem, Couro e Plásticos",
+    name: "Kit Básico Kazza: Shampoo, Limpador de Pneus, Hidratante e Limpador de Couro, APC, Restaurador de Plásticos, Luva e Toalha de Microfibra",
     category: "kits",
     price: 306.2,
     salePrice: 153.1,
@@ -342,10 +338,16 @@ const catalog: Product[] = [
   },
 ];
 
-export const products: Product[] = catalog.map((p) => ({
-  image: `/produtos/${p.id}.jpg`,
-  ...p,
-}));
+/** Produtos avulsos aparecem com 50% OFF: o preço cobrado não muda, o preço "de" é o dobro. */
+function withHalfOff(p: Product): Product {
+  if (p.category === "kits") return p;
+  const sale = p.salePrice ?? p.price;
+  return { ...p, price: Math.round(sale * 200) / 100, salePrice: sale };
+}
+
+export const products: Product[] = catalog.map((p) =>
+  withHalfOff({ image: `/produtos/${p.id}.jpg`, ...p }),
+);
 
 export type Banner = {
   id: string;
@@ -375,7 +377,7 @@ export const banners: Banner[] = [
     id: "lavagem",
     eyebrow: "Kit lavagem",
     title: "Frete grátis",
-    subtitle: `Em compras acima de R$ ${store.freeShippingFrom} para Sul e Sudeste`,
+    subtitle: "Em todas as compras, para todo o Brasil",
     cta: "Ver produtos",
     category: "lavagem",
     theme: "dark",
