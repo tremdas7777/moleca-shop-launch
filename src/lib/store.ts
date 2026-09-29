@@ -367,7 +367,6 @@ export const banners: Banner[] = [
     eyebrow: "Linha polimento",
     title: "50% off",
     subtitle: "Compostos, boinas e polidores para corte e refino",
-    coupon: "BRILHO20",
     cta: "Comprar agora",
     category: "polimento",
     theme: "dark",
