@@ -115,3 +115,15 @@ export async function runZedyCheckout(
 export const createZedyStoreCheckout = createServerFn({ method: "POST" })
   .validator(checkoutInput)
   .handler(async ({ data }) => runZedyCheckout(data.items));
+
+/** Pré-carrega o catálogo da Zedy (chamado ao abrir o carrinho) para o checkout abrir rápido. */
+export const warmZedyCatalog = createServerFn({ method: "POST" }).handler(async () => {
+  const creds = readZedyCredentials();
+  if (!creds) return { ok: false };
+  try {
+    await getZedyCatalog(creds);
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+});

@@ -58,19 +58,15 @@ async function zedyFetch(path: string, creds: ZedyCredentials, init?: RequestIni
 }
 
 export async function listAllZedyProducts(creds: ZedyCredentials): Promise<ZedyProduct[]> {
-  const products: ZedyProduct[] = [];
-  let page = 1;
-  let totalPages = 1;
-  while (page <= totalPages && page <= 40) {
-    const data = (await zedyFetch(
-      `/products?page=${page}&per_page=50&sort_by=title&sort_order=asc`,
-      creds,
-    )) as { products?: ZedyProduct[]; pagination?: { totalPages?: number } };
-    products.push(...(data.products ?? []));
-    totalPages = Math.max(1, Number(data.pagination?.totalPages) || 1);
-    page += 1;
-  }
-  return products;
+  type Page = { products?: ZedyProduct[]; pagination?: { totalPages?: number } };
+  const fetchPage = (page: number) =>
+    zedyFetch(`/products?page=${page}&per_page=50&sort_by=title&sort_order=asc`, creds) as Promise<Page>;
+  const first = await fetchPage(1);
+  const totalPages = Math.min(40, Math.max(1, Number(first.pagination?.totalPages) || 1));
+  const rest = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, i) => fetchPage(i + 2)),
+  );
+  return [first, ...rest].flatMap((p) => p.products ?? []);
 }
 
 export async function createZedyCheckout(
