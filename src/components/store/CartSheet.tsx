@@ -1,17 +1,21 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/format";
 import { kitProducts, store } from "@/lib/store";
-import { createZedyStoreCheckout } from "@/lib/zedy-server";
+import { createZedyStoreCheckout, warmZedyCatalog } from "@/lib/zedy-server";
 import { ProductImage } from "./ProductImage";
 
 export function CartSheet() {
   const { items, total, open, setOpen, setQuantity, remove } = useCart();
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open && items.length) void warmZedyCatalog().catch(() => {});
+  }, [open, items.length]);
 
   const whatsappMessage = encodeURIComponent(
     [
