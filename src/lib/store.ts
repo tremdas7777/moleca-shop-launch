@@ -96,6 +96,7 @@ export type Product = {
   gallery?: string[];
   highlights?: string[];
   details?: { title: string; text: string }[];
+  compatibleBrands?: string[];
   specs?: [label: string, value: string][];
   /** Preço por quantidade (1, 2, 3 unidades...). Cada oferta acima de 1 vira um pacote com SKU próprio. */
   offers?: { units: number; price: number }[];
@@ -349,12 +350,32 @@ const catalog: Product[] = [
     highlights: [
       "Até 4,4 kW em tomada residencial de 20A",
       "Bivolt 110V / 220V, rede monofásica ou bifásica",
-      "Conector Tipo 2, padrão dos elétricos vendidos no Brasil",
+      "Compatível com todos os elétricos e híbridos plug-in da BYD, GWM, Volvo, BMW e mais",
       "Tela em português com potência, tempo e kWh carregados",
       "Cabo de 5 metros em TPU e bolsa de transporte inclusos",
       "2 anos de garantia do fabricante",
     ],
+    compatibleBrands: [
+      "BYD",
+      "GWM",
+      "Volvo",
+      "BMW",
+      "Mini",
+      "Mercedes-Benz",
+      "Renault",
+      "Chevrolet",
+      "Caoa Chery",
+      "JAC",
+      "Peugeot",
+      "Nissan",
+      "Audi",
+      "Porsche",
+    ],
     details: [
+      {
+        title: "Compatível com os elétricos mais vendidos do Brasil",
+        text: "O conector Tipo 2 é o padrão dos carros elétricos vendidos no Brasil. Por isso, o P4 carrega todos os elétricos e híbridos plug-in da BYD, GWM, Volvo, BMW, Mini, Mercedes-Benz, Renault, Chevrolet, Caoa Chery, JAC, Peugeot, Nissan, Audi e Porsche. Não precisa de adaptador.",
+      },
       {
         title: "Sem obra e sem wallbox",
         text: "Não precisa instalar nada. Basta uma tomada de 20A no padrão brasileiro de 3 pinos, com a instalação elétrica em dia. Ele funciona em 110V e em 220V, em redes monofásicas e bifásicas.",
@@ -388,6 +409,10 @@ const catalog: Product[] = [
       ["Tensão", "Bivolt 110V / 220V (monofásico ou bifásico)"],
       ["Frequência", "50 / 60 Hz"],
       ["Conector do veículo", "Tipo 2 (T2)"],
+      [
+        "Compatibilidade",
+        "Elétricos e híbridos plug-in com entrada Tipo 2: BYD, GWM, Volvo, BMW, Mini, Mercedes-Benz, Renault, Chevrolet, Caoa Chery, JAC, Peugeot, Nissan, Audi, Porsche e outras",
+      ],
       ["Plugue", "3 pinos 20A, padrão ABNT NBR 14136"],
       ["Cabo", "TPU, 5 metros"],
       ["Tela", 'LCD 2,8", em português'],

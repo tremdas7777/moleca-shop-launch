@@ -239,6 +239,27 @@ function ProductPage() {
             </ul>
           )}
 
+          {product.compatibleBrands && (
+            <div className="mt-6 border border-neutral-200 bg-neutral-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-neutral-900">
+                Compatível com todos os elétricos e híbridos plug-in das marcas
+              </p>
+              <ul className="mt-3 flex flex-wrap gap-1.5">
+                {product.compatibleBrands.map((brand) => (
+                  <li
+                    key={brand}
+                    className="border border-neutral-300 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-800"
+                  >
+                    {brand}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[11px] text-neutral-500">
+                E qualquer outro carro com entrada Tipo 2, padrão no Brasil.
+              </p>
+            </div>
+          )}
+
           <ul className="mt-6 grid gap-3 sm:grid-cols-2">
             {perks.map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-3 text-[13px] text-neutral-700">
