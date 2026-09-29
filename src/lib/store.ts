@@ -365,7 +365,7 @@ export const banners: Banner[] = [
   {
     id: "polimento",
     eyebrow: "Linha polimento",
-    title: "Até 20% off",
+    title: "50% off",
     subtitle: "Compostos, boinas e polidores para corte e refino",
     coupon: "BRILHO20",
     cta: "Comprar agora",
