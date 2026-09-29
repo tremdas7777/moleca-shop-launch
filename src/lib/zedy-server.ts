@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { products, type Product } from "@/lib/store";
+import { findProduct, type Product } from "@/lib/store";
 import {
   createZedyCheckout,
   listAllZedyProducts,
@@ -75,7 +75,7 @@ export async function runZedyCheckout(
     const checkoutItems: { variantId: number; quantity: number }[] = [];
 
     for (const line of items) {
-      const product = products.find((p) => p.id === line.id);
+      const product = findProduct(line.id);
       const variant = product ? findVariant(catalog, product) : null;
       const variantId = Number(variant?.id);
       if (!product || !variant || !Number.isFinite(variantId)) {

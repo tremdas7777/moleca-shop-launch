@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
-import { ChevronRight, Minus, Plus, ShieldCheck, ShoppingCart, Truck } from "lucide-react";
+import { Check, ChevronRight, Minus, Plus, ShieldCheck, ShoppingCart, Truck } from "lucide-react";
 import { ProductImage } from "@/components/store/ProductImage";
 import { ProductShelf } from "@/components/store/ProductShelf";
 import { useCart } from "@/lib/cart";
 import { useCheckout } from "@/lib/checkout";
 import { formatBRL } from "@/lib/format";
-import { categories, kitProducts, products, productsByCategory, store } from "@/lib/store";
+import {
+  bundleId,
+  categories,
+  findProduct,
+  kitProducts,
+  products,
+  productsByCategory,
+  store,
+} from "@/lib/store";
 import { warmZedyCatalog } from "@/lib/zedy-server";
 
 export const Route = createFileRoute("/produto/$id")({
@@ -37,14 +45,26 @@ function ProductPage() {
   const { add } = useCart();
   const { busy, checkout } = useCheckout();
   const [quantity, setQuantity] = useState(1);
+  const [units, setUnits] = useState(1);
+  const offers = product.offers ?? [];
+  const selected = (units > 1 && findProduct(bundleId(product.id, units))) || product;
+  const photos = [product.image, ...(product.gallery ?? [])].filter((src): src is string =>
+    Boolean(src),
+  );
+  const [photo, setPhoto] = useState(0);
 
   useEffect(() => {
     void warmZedyCatalog().catch(() => {});
   }, []);
 
+  useEffect(() => {
+    setPhoto(0);
+    setUnits(1);
+  }, [product.id]);
+
   const category = categories.find((c) => c.id === product.category);
   const items = kitProducts(product);
-  const finalPrice = product.salePrice ?? product.price;
+  const finalPrice = selected.salePrice ?? selected.price;
   const discount = product.salePrice
     ? Math.round((1 - product.salePrice / product.price) * 100)
     : 0;
@@ -70,12 +90,33 @@ function ProductPage() {
       </nav>
 
       <div className="mt-4 grid gap-8 lg:grid-cols-2 lg:gap-12">
-        <div className="relative aspect-square border border-neutral-200 bg-white p-6">
-          <ProductImage product={product} />
-          {discount > 0 && (
-            <span className="absolute left-4 top-4 bg-primary px-2 py-1 text-xs font-bold text-white">
-              {discount}% OFF
-            </span>
+        <div>
+          <div className="relative aspect-square border border-neutral-200 bg-white p-6">
+            <ProductImage
+              product={photos[photo] ? { ...product, image: photos[photo] } : product}
+            />
+            {discount > 0 && (
+              <span className="absolute left-4 top-4 bg-primary px-2 py-1 text-xs font-bold text-white">
+                {discount}% OFF
+              </span>
+            )}
+          </div>
+          {photos.length > 1 && (
+            <ul className="mt-2 grid grid-cols-5 gap-2 sm:grid-cols-8">
+              {photos.map((src, i) => (
+                <li key={src}>
+                  <button
+                    aria-label={`Ver foto ${i + 1}`}
+                    onClick={() => setPhoto(i)}
+                    className={`aspect-square w-full border bg-white p-1 ${
+                      i === photo ? "border-primary" : "border-neutral-200 hover:border-neutral-400"
+                    }`}
+                  >
+                    <img src={src} alt="" loading="lazy" className="h-full w-full object-contain" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 
@@ -86,8 +127,8 @@ function ProductPage() {
           <p className="mt-1 text-xs text-neutral-400">Cód. {product.id}</p>
 
           <div className="mt-6 space-y-1 border-y border-neutral-200 py-5">
-            {product.salePrice && (
-              <p className="text-sm text-neutral-400 line-through">{formatBRL(product.price)}</p>
+            {selected.salePrice && (
+              <p className="text-sm text-neutral-400 line-through">{formatBRL(selected.price)}</p>
             )}
             <p className="text-sm text-neutral-600">
               {product.hasVariants && "A partir de "}
@@ -95,8 +136,66 @@ function ProductPage() {
             </p>
           </div>
 
+          {offers.length > 0 && (
+            <fieldset className="mt-6">
+              <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-neutral-900">
+                Escolha a quantidade
+              </legend>
+              <div className="space-y-2">
+                {offers.map((offer) => {
+                  const single = offers[0]!.price;
+                  const saving = single * offer.units - offer.price;
+                  const best = offer.units === offers[offers.length - 1]!.units && offer.units > 1;
+                  const active = offer.units === units;
+                  return (
+                    <label
+                      key={offer.units}
+                      className={`relative flex cursor-pointer items-center gap-3 border-2 px-4 py-3 transition-colors ${
+                        active
+                          ? "border-primary bg-primary/5"
+                          : "border-neutral-200 hover:border-neutral-400"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="oferta"
+                        checked={active}
+                        onChange={() => setUnits(offer.units)}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      <span className="flex-1">
+                        <span className="block text-sm font-bold text-neutral-900">
+                          {offer.units} {offer.units === 1 ? "unidade" : "unidades"}
+                        </span>
+                        {offer.units > 1 && (
+                          <span className="block text-xs text-neutral-600">
+                            {formatBRL(offer.price / offer.units)} cada
+                            {saving > 0 && (
+                              <span className="font-semibold text-pix">
+                                {" "}
+                                · Economize {formatBRL(saving)}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-base font-bold text-pix">{formatBRL(offer.price)}</span>
+                      {best && (
+                        <span className="absolute -top-2.5 right-3 bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                          Melhor preço
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
+
           <div className="mt-6 flex gap-3">
-            <div className="flex h-12 items-center border border-neutral-300">
+            <div
+              className={`h-12 items-center border border-neutral-300 ${offers.length > 0 ? "hidden" : "flex"}`}
+            >
               <button
                 aria-label="Diminuir quantidade"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
@@ -115,19 +214,30 @@ function ProductPage() {
             </div>
             <button
               disabled={busy}
-              onClick={() => void checkout([{ product, quantity }])}
+              onClick={() => void checkout([{ product: selected, quantity }])}
               className="h-12 flex-1 bg-primary text-sm font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-900 disabled:opacity-60"
             >
               {busy ? "Abrindo checkout…" : "Comprar agora"}
             </button>
           </div>
           <button
-            onClick={() => add(product.id, quantity)}
+            onClick={() => add(selected.id, quantity)}
             className="mt-3 flex h-12 w-full items-center justify-center gap-2 border-2 border-neutral-900 text-sm font-bold uppercase tracking-wider text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-white"
           >
             <ShoppingCart className="h-4 w-4" />
             Adicionar ao carrinho
           </button>
+
+          {product.highlights && (
+            <ul className="mt-6 space-y-2">
+              {product.highlights.map((text) => (
+                <li key={text} className="flex items-start gap-2 text-sm text-neutral-800">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-pix" strokeWidth={2.5} />
+                  {text}
+                </li>
+              ))}
+            </ul>
+          )}
 
           <ul className="mt-6 grid gap-3 sm:grid-cols-2">
             {perks.map(({ icon: Icon, text }) => (
@@ -174,7 +284,39 @@ function ProductPage() {
         <p className="mt-4 max-w-3xl text-sm leading-relaxed text-neutral-700">
           {product.description ?? category?.about}
         </p>
+        {product.details && (
+          <div className="mt-8 grid gap-x-10 gap-y-6 md:grid-cols-2">
+            {product.details.map(({ title, text }) => (
+              <div key={title} className="border-l-2 border-primary pl-4">
+                <h3 className="font-display text-lg font-bold uppercase text-neutral-900">
+                  {title}
+                </h3>
+                <p className="mt-1 text-sm leading-relaxed text-neutral-700">{text}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
+
+      {product.specs && (
+        <section className="mt-12">
+          <h2 className="border-b border-neutral-200 pb-2 font-display text-2xl font-bold uppercase">
+            Ficha técnica
+          </h2>
+          <table className="mt-4 w-full max-w-3xl text-sm">
+            <tbody>
+              {product.specs.map(([label, value]) => (
+                <tr key={label} className="border-b border-neutral-100 even:bg-neutral-50">
+                  <th className="w-2/5 py-2 pl-3 pr-4 text-left font-semibold text-neutral-900">
+                    {label}
+                  </th>
+                  <td className="py-2 pr-3 text-neutral-700">{value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       {related.length > 0 && (
         <div className="mt-12">

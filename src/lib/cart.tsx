@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { products, type Product } from "./store";
+import { findProduct, type Product } from "./store";
 
 export type CartItem = { product: Product; quantity: number };
 
@@ -39,7 +39,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<CartContextValue>(() => {
     const items = Object.entries(quantities)
-      .map(([id, quantity]) => ({ product: products.find((p) => p.id === id)!, quantity }))
+      .map(([id, quantity]) => ({ product: findProduct(id)!, quantity }))
       .filter((item) => item.product && item.quantity > 0);
 
     return {

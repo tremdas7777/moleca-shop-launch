@@ -19,7 +19,8 @@ export const announcements = [
   "Compra 100% segura",
 ];
 
-export type CategoryId = "lavagem" | "polimento" | "protecao" | "interior" | "acessorios";
+export type CategoryId =
+  "lavagem" | "polimento" | "protecao" | "interior" | "acessorios" | "eletricos";
 
 export type Category = {
   id: CategoryId;
@@ -70,6 +71,14 @@ export const categories: Category[] = [
     about:
       "Acessórios de alta qualidade para aplicar, remover e finalizar produtos com segurança, sem riscar e com o melhor rendimento.",
   },
+  {
+    id: "eletricos",
+    image: "/categorias/eletricos.jpg",
+    name: "Carro Elétrico",
+    headline: "Recarga prática, em casa ou na estrada",
+    about:
+      "Carregadores e acessórios para quem dirige elétrico: recarregue na tomada de casa, no trabalho ou em viagem, com segurança e sem obra.",
+  },
 ];
 
 export type Product = {
@@ -83,6 +92,14 @@ export type Product = {
   image?: string;
   description?: string;
   kitItems?: string[];
+  /** Fotos extras exibidas depois da imagem principal. */
+  gallery?: string[];
+  highlights?: string[];
+  details?: { title: string; text: string }[];
+  specs?: [label: string, value: string][];
+  /** Preço por quantidade (1, 2, 3 unidades...). Cada oferta acima de 1 vira um pacote com SKU próprio. */
+  offers?: { units: number; price: number }[];
+  bundleOf?: { id: string; units: number };
 };
 
 const catalog: Product[] = [
@@ -317,6 +334,75 @@ const catalog: Product[] = [
     price: 27.9,
   },
   {
+    id: "carregador-portatil-ipe-p4",
+    name: "Carregador Portátil para Carro Elétrico IPE P4 4,4 kW Bivolt / Bifásico",
+    category: "eletricos",
+    price: 267,
+    offers: [
+      { units: 1, price: 267 },
+      { units: 2, price: 497 },
+      { units: 3, price: 697 },
+    ],
+    gallery: [2, 3, 4, 5, 6, 7, 8].map((n) => `/produtos/carregador-portatil-ipe-p4/${n}.jpg`),
+    description:
+      "Seu carro elétrico carregando em qualquer tomada de 20A: na garagem de casa, na casa de praia, no sítio ou na casa de um amigo. O IPE P4 entrega até 4,4 kW, reconhece 110V e 220V sozinho e vai no porta-malas dentro da própria bolsa de transporte. Chega de depender de eletroposto ou de ficar na mão no meio da viagem.",
+    highlights: [
+      "Até 4,4 kW em tomada residencial de 20A",
+      "Bivolt 110V / 220V, rede monofásica ou bifásica",
+      "Conector Tipo 2, padrão dos elétricos vendidos no Brasil",
+      "Tela em português com potência, tempo e kWh carregados",
+      "Cabo de 5 metros em TPU e bolsa de transporte inclusos",
+      "2 anos de garantia do fabricante",
+    ],
+    details: [
+      {
+        title: "Sem obra e sem wallbox",
+        text: "Não precisa instalar nada. Basta uma tomada de 20A no padrão brasileiro de 3 pinos, com a instalação elétrica em dia. Ele funciona em 110V e em 220V, em redes monofásicas e bifásicas.",
+      },
+      {
+        title: "Você acompanha tudo pela tela",
+        text: 'O visor de 2,8" mostra em português a tensão da tomada, a corrente, a potência, a temperatura interna, o tempo de recarga e quantos kWh já entraram na bateria. Com o timer, dá para programar a recarga para o horário da tarifa mais barata.',
+      },
+      {
+        title: "Corrente ajustável",
+        text: "Em um local com instalação mais fraca, é só reduzir a amperagem para adaptar a recarga à tomada disponível, com segurança para o carro e para a rede.",
+      },
+      {
+        title: "Cabo feito para o dia a dia",
+        text: "São 5 metros de cabo em TPU, flexível e resistente a abrasão, óleo e produtos químicos. O controlador tem proteção IP54 contra poeira e respingos, e aguenta garagem, estacionamento e área externa.",
+      },
+      {
+        title: "Preparado para emergências",
+        text: "Se a tomada não tiver aterramento, o carregador avisa na tela com o código E4. Em uma emergência, dá para desativar esse alerta e concluir a recarga. O recomendado é sempre carregar em uma tomada aterrada e usar essa função só quando não houver outra opção.",
+      },
+      {
+        title: "Vai com você no porta-malas",
+        text: "A bolsa de transporte guarda o carregador e o cabo organizados e protegidos, prontos para a próxima viagem.",
+      },
+    ],
+    specs: [
+      ["Modelo", "IPE P4"],
+      ["Tipo", "Carregador portátil (modo 2)"],
+      ["Potência", "Até 4,4 kW"],
+      ["Corrente", "Até 20A, ajustável"],
+      ["Tensão", "Bivolt 110V / 220V (monofásico ou bifásico)"],
+      ["Frequência", "50 / 60 Hz"],
+      ["Conector do veículo", "Tipo 2 (T2)"],
+      ["Plugue", "3 pinos 20A, padrão ABNT NBR 14136"],
+      ["Cabo", "TPU, 5 metros"],
+      ["Tela", 'LCD 2,8", em português'],
+      ["Timer", "Sim"],
+      ["Aterramento", "Alerta com desativação para emergência"],
+      ["Grau de proteção", "IP54"],
+      ["Temperatura de operação", "-25 °C a 55 °C"],
+      ["Certificações", "CE, CB, UKCA, RoHS e TÜV"],
+      ["Dimensões do controlador", "23 × 8 × 5 cm"],
+      ["Peso", "0,4 kg (controlador) / 2,8 kg (total)"],
+      ["Acompanha", "Bolsa de transporte"],
+      ["Garantia", "2 anos do fabricante"],
+    ],
+  },
+  {
     id: "kit-basico",
     name: "Kit Básico Kazza: Shampoo, Limpador de Pneus, Hidratante e Limpador de Couro, APC, Restaurador de Plásticos, Luva e Toalha de Microfibra",
     category: "kits",
@@ -348,6 +434,29 @@ function withHalfOff(p: Product): Product {
 export const products: Product[] = catalog.map((p) =>
   withHalfOff({ image: `/produtos/${p.id}.jpg`, ...p }),
 );
+
+export function bundleId(productId: string, units: number) {
+  return units === 1 ? productId : `${productId}-${units}un`;
+}
+
+/** Pacotes de quantidade: não aparecem nas vitrines, só no carrinho e no checkout. */
+export const bundles: Product[] = products.flatMap(({ offers, salePrice: _, ...base }) =>
+  (offers ?? [])
+    .filter((o) => o.units > 1)
+    .map((o) =>
+      withHalfOff({
+        ...base,
+        id: bundleId(base.id, o.units),
+        name: `${base.name} (${o.units} unidades)`,
+        price: o.price,
+        bundleOf: { id: base.id, units: o.units },
+      }),
+    ),
+);
+
+export function findProduct(id: string) {
+  return products.find((p) => p.id === id) ?? bundles.find((p) => p.id === id);
+}
 
 export type Banner = {
   id: string;
