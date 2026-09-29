@@ -13,7 +13,7 @@ const institutional = [
 
 const account = ["Minha conta", "Meus pedidos", "Rastrear pedido", "Lista de desejos"];
 
-const payments = ["Visa", "Master", "Elo", "Amex", "Hiper", "Pix", "Boleto"];
+const payments = ["Pix"];
 
 function FooterColumn({ title, children }: { title: string; children: React.ReactNode }) {
   return (

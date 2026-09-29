@@ -1,4 +1,4 @@
-import { CreditCard, QrCode, ShieldCheck, Truck } from "lucide-react";
+import { QrCode, RotateCcw, ShieldCheck, Truck } from "lucide-react";
 
 const benefits = [
   {
@@ -12,9 +12,9 @@ const benefits = [
     text: "Aprovação na hora",
   },
   {
-    icon: CreditCard,
-    title: "Cartão de crédito",
-    text: "Visa, Mastercard, Elo e Amex",
+    icon: RotateCcw,
+    title: "Troca garantida",
+    text: "7 dias para trocar ou devolver",
   },
   { icon: ShieldCheck, title: "Compra 100% segura", text: "Certificado SSL e dados protegidos" },
 ];
