@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/format";
 import type { Product } from "@/lib/store";
@@ -49,8 +50,13 @@ export function ProductCard({ product }: { product: Product }) {
             Escolher opção
           </Link>
         ) : (
-          <button onClick={() => add(product.id)} className={buttonClass}>
-            Comprar
+          <button
+            onClick={() => add(product.id)}
+            aria-label="Adicionar ao carrinho"
+            className={`${buttonClass} flex items-center justify-center gap-1.5`}
+          >
+            <ShoppingCart className="h-3.5 w-3.5 shrink-0" />
+            Adicionar<span className="hidden sm:inline"> ao carrinho</span>
           </button>
         )}
       </div>

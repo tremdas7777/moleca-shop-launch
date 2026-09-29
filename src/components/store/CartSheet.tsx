@@ -1,56 +1,20 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/lib/cart";
+import { useCheckout } from "@/lib/checkout";
 import { formatBRL } from "@/lib/format";
-import { kitProducts, store } from "@/lib/store";
-import { createZedyStoreCheckout, warmZedyCatalog } from "@/lib/zedy-server";
+import { warmZedyCatalog } from "@/lib/zedy-server";
 import { ProductImage } from "./ProductImage";
 
 export function CartSheet() {
   const { items, total, open, setOpen, setQuantity, remove } = useCart();
-  const [busy, setBusy] = useState(false);
+  const { busy, checkout } = useCheckout();
 
   useEffect(() => {
     if (open && items.length) void warmZedyCatalog().catch(() => {});
   }, [open, items.length]);
-
-  const whatsappMessage = encodeURIComponent(
-    [
-      `Olá! Quero finalizar meu pedido na ${store.name}:`,
-      ...items.flatMap((i) => [
-        `• ${i.quantity}x ${i.product.name}`,
-        ...kitProducts(i.product).map((p) => `   - ${p.name}`),
-      ]),
-      `Total: ${formatBRL(total)}`,
-    ].join("\n"),
-  );
-
-  const checkout = async () => {
-    if (busy || !items.length) return;
-    setBusy(true);
-    try {
-      const result = await createZedyStoreCheckout({
-        data: { items: items.map((i) => ({ id: i.product.id, quantity: i.quantity })) },
-      });
-      if (result.ok) {
-        window.location.href = result.checkoutUrl;
-        return;
-      }
-      if (result.reason === "not_configured") {
-        window.location.href = `https://wa.me/${store.whatsapp}?text=${whatsappMessage}`;
-      } else if (result.missing?.length) {
-        toast.error(`Indisponível no momento: ${result.missing.slice(0, 3).join(", ")}`);
-      } else {
-        toast.error(result.error);
-      }
-    } catch {
-      toast.error("Não foi possível abrir o checkout. Tente novamente.");
-    }
-    setBusy(false);
-  };
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -121,7 +85,7 @@ export function CartSheet() {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void checkout()}
+                onClick={() => void checkout(items)}
                 className="block w-full bg-primary py-3.5 text-center text-[13px] font-bold uppercase tracking-wider text-white hover:bg-primary/90 disabled:opacity-60"
               >
                 {busy ? "Abrindo checkout…" : "Finalizar compra"}

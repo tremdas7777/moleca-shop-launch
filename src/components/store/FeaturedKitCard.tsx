@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
+import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import { useCheckout } from "@/lib/checkout";
 import { formatBRL } from "@/lib/format";
 import { kitProducts, type Product } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -7,6 +9,7 @@ import { ProductImage } from "./ProductImage";
 
 export function FeaturedKitCard({ kit, className }: { kit: Product; className?: string }) {
   const { add } = useCart();
+  const { busy, checkout } = useCheckout();
   const items = kitProducts(kit);
   const finalPrice = kit.salePrice ?? kit.price;
   const discount = kit.salePrice ? Math.round((1 - kit.salePrice / kit.price) * 100) : 0;
@@ -60,10 +63,18 @@ export function FeaturedKitCard({ kit, className }: { kit: Product; className?: 
         </div>
 
         <button
-          onClick={() => add(kit.id)}
-          className="mt-4 w-full bg-primary py-3.5 text-[13px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-900"
+          disabled={busy}
+          onClick={() => void checkout([{ product: kit, quantity: 1 }])}
+          className="mt-4 w-full bg-primary py-3.5 text-[13px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-900 disabled:opacity-60"
         >
-          Comprar agora
+          {busy ? "Abrindo checkout…" : "Comprar agora"}
+        </button>
+        <button
+          onClick={() => add(kit.id)}
+          className="mt-2 flex w-full items-center justify-center gap-2 border-2 border-neutral-900 py-3 text-[13px] font-bold uppercase tracking-wider text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-white"
+        >
+          <ShoppingCart className="h-4 w-4" />
+          Adicionar ao carrinho
         </button>
       </div>
     </article>

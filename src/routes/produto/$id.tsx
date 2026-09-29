@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
-import { ChevronRight, Minus, Plus, ShieldCheck, Truck } from "lucide-react";
+import { ChevronRight, Minus, Plus, ShieldCheck, ShoppingCart, Truck } from "lucide-react";
 import { ProductImage } from "@/components/store/ProductImage";
 import { ProductShelf } from "@/components/store/ProductShelf";
 import { useCart } from "@/lib/cart";
+import { useCheckout } from "@/lib/checkout";
 import { formatBRL } from "@/lib/format";
 import { categories, kitProducts, products, productsByCategory, store } from "@/lib/store";
+import { warmZedyCatalog } from "@/lib/zedy-server";
 
 export const Route = createFileRoute("/produto/$id")({
   loader: ({ params }) => {
@@ -33,7 +35,12 @@ const perks = [
 function ProductPage() {
   const { product } = Route.useLoaderData();
   const { add } = useCart();
+  const { busy, checkout } = useCheckout();
   const [quantity, setQuantity] = useState(1);
+
+  useEffect(() => {
+    void warmZedyCatalog().catch(() => {});
+  }, []);
 
   const category = categories.find((c) => c.id === product.category);
   const items = kitProducts(product);
@@ -107,12 +114,20 @@ function ProductPage() {
               </button>
             </div>
             <button
-              onClick={() => add(product.id, quantity)}
-              className="h-12 flex-1 bg-primary text-sm font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-900"
+              disabled={busy}
+              onClick={() => void checkout([{ product, quantity }])}
+              className="h-12 flex-1 bg-primary text-sm font-bold uppercase tracking-wider text-white transition-colors hover:bg-neutral-900 disabled:opacity-60"
             >
-              Comprar agora
+              {busy ? "Abrindo checkout…" : "Comprar agora"}
             </button>
           </div>
+          <button
+            onClick={() => add(product.id, quantity)}
+            className="mt-3 flex h-12 w-full items-center justify-center gap-2 border-2 border-neutral-900 text-sm font-bold uppercase tracking-wider text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-white"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Adicionar ao carrinho
+          </button>
 
           <ul className="mt-6 grid gap-3 sm:grid-cols-2">
             {perks.map(({ icon: Icon, text }) => (
