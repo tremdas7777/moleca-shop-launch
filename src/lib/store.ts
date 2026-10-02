@@ -338,11 +338,11 @@ const catalog: Product[] = [
     id: "carregador-portatil-ipe-p4",
     name: "Carregador Portátil para Carro Elétrico IPE P4 4,4 kW Bivolt / Bifásico",
     category: "eletricos",
-    price: 197,
+    price: 267,
     offers: [
-      { units: 1, price: 197 },
-      { units: 2, price: 297 },
-      { units: 3, price: 397 },
+      { units: 1, price: 267 },
+      { units: 2, price: 497 },
+      { units: 3, price: 697 },
     ],
     gallery: [2, 3, 4, 5, 6, 7, 8].map((n) => `/produtos/carregador-portatil-ipe-p4/${n}.jpg`),
     description:
