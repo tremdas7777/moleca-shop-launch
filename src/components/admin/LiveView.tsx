@@ -17,21 +17,36 @@ import {
 
 const ONLINE_MS = 5 * 60_000;
 
+/** Janelas de tempo do Live view, em minutos. */
+const WINDOWS = [
+  [5, "5 min"],
+  [15, "15 min"],
+  [30, "30 min"],
+  [60, "1h"],
+  [180, "3h"],
+  [360, "6h"],
+  [720, "12h"],
+  [1440, "24h"],
+] as const;
+
 function countBy<T>(list: T[], key: (t: T) => string) {
   const m = new Map<string, number>();
   for (const t of list) m.set(key(t), (m.get(key(t)) ?? 0) + 1);
   return [...m.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-export function LiveView({ data }: { data: DashboardData }) {
+export function LiveView({ data, hours }: { data: DashboardData; hours: number }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [onlyOnline, setOnlyOnline] = useState(false);
+  const [win, setWin] = useState<number>(5);
+  // A janela não pode passar do período carregado no topo do painel.
+  const minutes = Math.min(win, hours * 60);
+  const winLabel = WINDOWS.find(([m]) => m === minutes)?.[1] ?? `${hours}h`;
 
   const s = useMemo(() => {
+    const since = new Date(Date.now() - minutes * 60_000).toISOString();
     const visitors = groupVisitors(data.events);
-    const online = visitors.filter(
-      (v) => Date.now() - new Date(v.last.created_at).getTime() < ONLINE_MS,
-    );
+    const online = visitors.filter((v) => v.last.created_at >= since);
     const inCheckout = online.filter(
       (v) => v.last.event === "checkout" || v.last.path?.startsWith("/checkout"),
     );
@@ -79,6 +94,7 @@ export function LiveView({ data }: { data: DashboardData }) {
           : []),
       ]),
     ]
+      .filter((f) => f.at >= since)
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 200);
 
@@ -94,7 +110,7 @@ export function LiveView({ data }: { data: DashboardData }) {
       devices: countBy(online, (v) => v.device ?? "?"),
       origins: countBy(online, (v) => v.origin),
     };
-  }, [data]);
+  }, [data, minutes]);
 
   const list = onlyOnline ? s.online : s.visitors;
   const sel = s.visitors.find((v) => v.id === selected);
@@ -102,22 +118,46 @@ export function LiveView({ data }: { data: DashboardData }) {
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-xs font-semibold text-muted-foreground uppercase">Janela</span>
+        {WINDOWS.map(([m, label]) => {
+          const disabled = m > hours * 60;
+          return (
+            <button
+              key={m}
+              disabled={disabled}
+              title={disabled ? "Aumente o período no topo do painel" : undefined}
+              onClick={() => setWin(m)}
+              className={cn(
+                "border px-2.5 py-1.5 text-xs font-semibold uppercase",
+                minutes === m
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-white hover:bg-neutral-50",
+                disabled && "cursor-not-allowed opacity-40 hover:bg-white",
+              )}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
-          label="Online agora"
+          label={minutes <= 5 ? "Online agora" : `Ativos · ${winLabel}`}
           value={String(s.online.length)}
           tone="primary"
-          hint="ativos nos últimos 5 min"
+          hint={`ativos nos últimos ${winLabel}`}
         />
         <Stat
-          label="No checkout agora"
+          label={minutes <= 5 ? "No checkout agora" : `No checkout · ${winLabel}`}
           value={String(s.inCheckout.length)}
           hint={money(s.checkoutValue)}
         />
         <Stat
-          label="Com carrinho"
+          label={`Com carrinho · ${winLabel}`}
           value={String(s.withCart.length)}
-          hint="online com produto no carrinho"
+          hint="ativos com produto no carrinho"
         />
         <Stat label="Visitantes no período" value={String(s.visitors.length)} />
       </div>
@@ -125,14 +165,14 @@ export function LiveView({ data }: { data: DashboardData }) {
       <div className="grid gap-5 md:grid-cols-3">
         {(
           [
-            ["Páginas abertas agora", s.pages],
-            ["Origem de quem está online", s.origins],
-            ["Dispositivos online", s.devices],
+            [`Últimas páginas · ${winLabel}`, s.pages],
+            [`Origem dos ativos · ${winLabel}`, s.origins],
+            [`Dispositivos · ${winLabel}`, s.devices],
           ] as const
         ).map(([title, rows]) => (
           <Section key={title} title={title}>
             {rows.length === 0 ? (
-              <Empty>Ninguém online.</Empty>
+              <Empty>Ninguém ativo nessa janela.</Empty>
             ) : (
               <ul className="space-y-1.5 text-sm">
                 {rows.slice(0, 8).map(([k, n]) => (
@@ -163,7 +203,7 @@ export function LiveView({ data }: { data: DashboardData }) {
                 checked={onlyOnline}
                 onChange={(e) => setOnlyOnline(e.target.checked)}
               />
-              só online
+              só ativos ({winLabel})
             </label>
           }
         >
@@ -265,9 +305,9 @@ export function LiveView({ data }: { data: DashboardData }) {
         </Section>
       </div>
 
-      <Section title="Tempo real">
+      <Section title={`Tempo real · ${winLabel}`}>
         <div className="max-h-[480px] divide-y overflow-y-auto text-sm">
-          {s.feed.length === 0 && <Empty>Sem eventos ainda.</Empty>}
+          {s.feed.length === 0 && <Empty>Sem eventos nessa janela.</Empty>}
           {s.feed.map((f) => (
             <div key={f.id} className="flex gap-3 py-2">
               <span className="w-16 shrink-0 text-xs text-muted-foreground">{time(f.at)}</span>

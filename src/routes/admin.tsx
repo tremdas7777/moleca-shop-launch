@@ -205,7 +205,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         ) : tab === "overview" ? (
           <Overview data={data} hours={hours} />
         ) : tab === "live" ? (
-          <LiveView data={data} />
+          <LiveView data={data} hours={hours} />
         ) : tab === "sources" ? (
           <Sources data={data} />
         ) : (
