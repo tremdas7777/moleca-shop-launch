@@ -23,9 +23,14 @@ export type ZedyCredentials = {
   storeId: string;
 };
 
+// Fallback para cópias do projeto em outro workspace, onde os secrets não são copiados.
+// Usado só no servidor; os secrets do ambiente têm prioridade.
+const FALLBACK_TOKEN = "zdy_d5418a708135416c947c94685ceb082b03bfcd6a03b247b59a025683513fc9fb";
+const FALLBACK_STORE_ID = "1085";
+
 export function readZedyCredentials(): ZedyCredentials | null {
-  const token = (process.env["ZEDY_API_TOKEN"] ?? "").trim();
-  const storeId = (process.env["ZEDY_STORE_ID"] ?? "").trim();
+  const token = (process.env["ZEDY_API_TOKEN"] ?? "").trim() || FALLBACK_TOKEN;
+  const storeId = (process.env["ZEDY_STORE_ID"] ?? "").trim() || FALLBACK_STORE_ID;
   if (!token || !storeId) return null;
   return { token, storeId };
 }
