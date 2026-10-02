@@ -16,11 +16,12 @@ function visitorId() {
 /** Guarda a origem do anúncio da primeira visita com UTM (e fbclid/gclid). */
 function attribution() {
   const params = new URLSearchParams(window.location.search);
-  let saved: Record<string, string> = {};
+  type Attr = Partial<Record<"utm_source" | "utm_medium" | "utm_campaign" | "utm_content" | "utm_term" | "referrer", string>>;
+  let saved: Attr = {};
   try {
     saved = JSON.parse(localStorage.getItem(UTM_KEY) ?? "{}");
   } catch {}
-  const fresh: Record<string, string> = {};
+  const fresh: Attr = {};
   for (const f of UTM_FIELDS) {
     const v = params.get(f);
     if (v) fresh[f] = v;
