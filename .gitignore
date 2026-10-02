@@ -35,3 +35,6 @@ dist-ssr
 *.sln
 *.sw?
 kazza-produtos-shopify.csv
+
+# Configuração local do Claude Code
+.claude/

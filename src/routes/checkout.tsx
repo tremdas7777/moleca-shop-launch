@@ -1,3 +1,4 @@
+// Checkout próprio (3 etapas) com PIX via PixGate — ver src/lib/payment.ts.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Check, ChevronDown, Copy, Loader2, LockKeyhole } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
