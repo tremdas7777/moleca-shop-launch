@@ -153,6 +153,8 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = pathname.startsWith("/admin");
+  // Admin e checkout têm layout próprio, sem cabeçalho/rodapé da loja.
+  const bare = isAdmin || pathname.startsWith("/checkout");
 
   useEffect(() => {
     track({ event: "page_view", path: pathname });
@@ -161,14 +163,14 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <CartProvider>
-        {!isAdmin && <SiteHeader />}
+        {!bare && <SiteHeader />}
         <main className="bg-white">
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </main>
-        {!isAdmin && <Newsletter />}
-        {!isAdmin && <SiteFooter />}
-        {!isAdmin && <CartSheet />}
+        {!bare && <Newsletter />}
+        {!bare && <SiteFooter />}
+        {!bare && <CartSheet />}
         <Toaster position="top-center" />
       </CartProvider>
     </QueryClientProvider>

@@ -15,7 +15,6 @@ import {
   productsByCategory,
   store,
 } from "@/lib/store";
-import { warmZedyCatalog } from "@/lib/zedy-server";
 import { track } from "@/lib/track";
 
 export const Route = createFileRoute("/produto/$id")({
@@ -53,10 +52,6 @@ function ProductPage() {
     Boolean(src),
   );
   const [photo, setPhoto] = useState(0);
-
-  useEffect(() => {
-    void warmZedyCatalog().catch(() => {});
-  }, []);
 
   useEffect(() => {
     setPhoto(0);

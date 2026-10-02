@@ -1,20 +1,14 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/lib/cart";
 import { useCheckout } from "@/lib/checkout";
 import { formatBRL } from "@/lib/format";
-import { warmZedyCatalog } from "@/lib/zedy-server";
 import { ProductImage } from "./ProductImage";
 
 export function CartSheet() {
   const { items, total, open, setOpen, setQuantity, remove } = useCart();
   const { busy, checkout } = useCheckout();
-
-  useEffect(() => {
-    if (open && items.length) void warmZedyCatalog().catch(() => {});
-  }, [open, items.length]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -85,7 +79,10 @@ export function CartSheet() {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void checkout(items)}
+                onClick={() => {
+                  setOpen(false);
+                  void checkout(items);
+                }}
                 className="block w-full bg-primary py-3.5 text-center text-[13px] font-bold uppercase tracking-wider text-white hover:bg-primary/90 disabled:opacity-60"
               >
                 {busy ? "Abrindo checkout…" : "Finalizar compra"}

@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as ProdutoIdRouteImport } from './routes/produto/$id'
+import { Route as ApiPixgateWebhookRouteImport } from './routes/api/pixgate/webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ObrigadoRoute = ObrigadoRouteImport.update({
@@ -34,39 +41,71 @@ const ProdutoIdRoute = ProdutoIdRouteImport.update({
   path: '/produto/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPixgateWebhookRoute = ApiPixgateWebhookRouteImport.update({
+  id: '/api/pixgate/webhook',
+  path: '/api/pixgate/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/checkout': typeof CheckoutRoute
   '/obrigado': typeof ObrigadoRoute
   '/produto/$id': typeof ProdutoIdRoute
+  '/api/pixgate/webhook': typeof ApiPixgateWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/checkout': typeof CheckoutRoute
   '/obrigado': typeof ObrigadoRoute
   '/produto/$id': typeof ProdutoIdRoute
+  '/api/pixgate/webhook': typeof ApiPixgateWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/checkout': typeof CheckoutRoute
   '/obrigado': typeof ObrigadoRoute
   '/produto/$id': typeof ProdutoIdRoute
+  '/api/pixgate/webhook': typeof ApiPixgateWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/obrigado' | '/produto/$id'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/checkout'
+    | '/obrigado'
+    | '/produto/$id'
+    | '/api/pixgate/webhook'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/obrigado' | '/produto/$id'
-  id: '__root__' | '/' | '/admin' | '/obrigado' | '/produto/$id'
+  to:
+    | '/'
+    | '/admin'
+    | '/checkout'
+    | '/obrigado'
+    | '/produto/$id'
+    | '/api/pixgate/webhook'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/checkout'
+    | '/obrigado'
+    | '/produto/$id'
+    | '/api/pixgate/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CheckoutRoute: typeof CheckoutRoute
   ObrigadoRoute: typeof ObrigadoRoute
   ProdutoIdRoute: typeof ProdutoIdRoute
+  ApiPixgateWebhookRoute: typeof ApiPixgateWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -85,6 +124,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/obrigado': {
       id: '/obrigado'
       path: '/obrigado'
@@ -99,14 +145,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProdutoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/pixgate/webhook': {
+      id: '/api/pixgate/webhook'
+      path: '/api/pixgate/webhook'
+      fullPath: '/api/pixgate/webhook'
+      preLoaderRoute: typeof ApiPixgateWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CheckoutRoute: CheckoutRoute,
   ObrigadoRoute: ObrigadoRoute,
   ProdutoIdRoute: ProdutoIdRoute,
+  ApiPixgateWebhookRoute: ApiPixgateWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
