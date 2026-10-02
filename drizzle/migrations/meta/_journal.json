@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790942588994,
+      "tag": "0000_funnel_events",
+      "breakpoints": true
+    }
+  ]
+}
