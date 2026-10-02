@@ -263,8 +263,13 @@ function CheckoutForm({ items }: { items: CartItem[] }) {
       });
       if (result.ok) setPix(result);
       else toast.error(result.error);
-    } catch {
-      toast.error("Não foi possível gerar o PIX. Tente novamente.");
+    } catch (err) {
+      console.error("[pix] falha na chamada ao servidor", err);
+      toast.error(
+        `Não foi possível gerar o PIX (erro no servidor: ${
+          err instanceof Error ? err.message.slice(0, 120) : "desconhecido"
+        }).`,
+      );
     }
     setPaying(false);
   };

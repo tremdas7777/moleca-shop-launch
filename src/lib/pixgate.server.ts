@@ -25,12 +25,32 @@ async function pixgateFetch(path: string, apiKey: string, init?: RequestInit) {
       ...init?.headers,
     },
   });
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!res.ok) {
-    const message = typeof body["message"] === "string" ? body["message"] : `HTTP ${res.status}`;
-    throw new Error(`PixGate ${path}: ${message}`);
+  const text = await res.text();
+  let body: Record<string, unknown> = {};
+  try {
+    body = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    // resposta não-JSON (ex.: página de erro do proxy)
+  }
+  // A PixGate também devolve erros com HTTP 200 e `statusCode` no corpo.
+  const statusCode = typeof body["statusCode"] === "number" ? body["statusCode"] : res.status;
+  if (!res.ok || statusCode >= 400) {
+    const message =
+      (typeof body["message"] === "string" && body["message"]) ||
+      (typeof body["error"] === "string" && body["error"]) ||
+      `HTTP ${statusCode} ${text.slice(0, 120)}`;
+    throw new PixGateError(statusCode, message);
   }
   return body;
+}
+
+export class PixGateError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 export type PixGateCashIn = { id: string; pix: string; value: number; status: string };
@@ -52,7 +72,7 @@ export async function createCashIn(
     body: JSON.stringify({ ...input, valor: input.valor.toFixed(2) }),
   });
   if (typeof body["id"] !== "string" || typeof body["pix"] !== "string") {
-    throw new Error("PixGate /v1/cashin: resposta sem id/pix");
+    throw new PixGateError(502, `resposta sem id/pix: ${JSON.stringify(body).slice(0, 160)}`);
   }
   return {
     id: body["id"],

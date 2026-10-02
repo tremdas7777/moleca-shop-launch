@@ -102,10 +102,12 @@ export const createPixCharge = createServerFn({ method: "POST" })
       return { ok: true, transactionId: charge.id, amount, pixCode: charge.pix };
     } catch (err) {
       console.error("[pix] erro ao criar cobrança", err);
+      // Mostra o motivo devolvido pela PixGate para facilitar o diagnóstico.
+      const detail = err instanceof Error ? err.message : String(err);
       return {
         ok: false,
         reason: "gateway_error",
-        error: "Não foi possível gerar o PIX. Confira o CPF e tente novamente.",
+        error: `Não foi possível gerar o PIX (${detail.slice(0, 160)}).`,
       };
     }
   });
