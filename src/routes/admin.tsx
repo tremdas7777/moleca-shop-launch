@@ -25,7 +25,7 @@ const STEPS = [
   { key: "page_view", label: "Entrou na loja" },
   { key: "product_view", label: "Viu produto" },
   { key: "add_to_cart", label: "Adicionou ao carrinho" },
-  { key: "checkout", label: "Foi para o checkout Zedy" },
+  { key: "checkout", label: "Foi para o checkout" },
   { key: "purchase", label: "Pagou (voltou ao /obrigado)" },
 ] as const;
 const RANK: Record<string, number> = Object.fromEntries(STEPS.map((s, i) => [s.key, i]));
@@ -193,7 +193,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         </div>
 
         <section className="border bg-white p-5">
-          <h2 className="mb-4 font-display text-lg font-bold uppercase">Funil até o checkout Zedy</h2>
+          <h2 className="mb-4 font-display text-lg font-bold uppercase">Funil até o checkout</h2>
           <div className="space-y-2">
             {STEPS.map((s, i) => {
               const n = stats.reach[i] ?? 0;
