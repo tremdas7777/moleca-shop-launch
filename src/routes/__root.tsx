@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useRouterState,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
@@ -19,6 +20,7 @@ import { Toaster } from "../components/ui/sonner";
 import { CartProvider } from "../lib/cart";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { store } from "../lib/store";
+import { track } from "../lib/track";
 
 function NotFoundComponent() {
   return (
@@ -149,18 +151,24 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAdmin = pathname.startsWith("/admin");
+
+  useEffect(() => {
+    track({ event: "page_view", path: pathname });
+  }, [pathname]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <CartProvider>
-        <SiteHeader />
+        {!isAdmin && <SiteHeader />}
         <main className="bg-white">
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </main>
-        <Newsletter />
-        <SiteFooter />
-        <CartSheet />
+        {!isAdmin && <Newsletter />}
+        {!isAdmin && <SiteFooter />}
+        {!isAdmin && <CartSheet />}
         <Toaster position="top-center" />
       </CartProvider>
     </QueryClientProvider>
