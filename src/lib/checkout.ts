@@ -4,6 +4,7 @@ import type { CartItem } from "./cart";
 import { formatBRL } from "./format";
 import { kitProducts, store } from "./store";
 import { createZedyStoreCheckout } from "./zedy-server";
+import { track } from "./track";
 
 function whatsappOrderUrl(items: CartItem[]) {
   const total = items.reduce(
@@ -32,6 +33,12 @@ export function useCheckout() {
         data: { items: items.map((i) => ({ id: i.product.id, quantity: i.quantity })) },
       });
       if (result.ok) {
+        track({
+          event: "checkout",
+          value: items.reduce((s, i) => s + (i.product.salePrice ?? i.product.price) * i.quantity, 0),
+          items: items.map((i) => ({ name: i.product.name, quantity: i.quantity })),
+        });
+        await new Promise((r) => setTimeout(r, 300));
         window.location.href = result.checkoutUrl;
         return;
       }

@@ -16,6 +16,7 @@ import {
   store,
 } from "@/lib/store";
 import { warmZedyCatalog } from "@/lib/zedy-server";
+import { track } from "@/lib/track";
 
 export const Route = createFileRoute("/produto/$id")({
   loader: ({ params }) => {
@@ -60,6 +61,7 @@ function ProductPage() {
   useEffect(() => {
     setPhoto(0);
     setUnits(1);
+    track({ event: "product_view", productId: product.id, productName: product.name, value: product.salePrice ?? product.price });
   }, [product.id]);
 
   const category = categories.find((c) => c.id === product.category);
