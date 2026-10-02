@@ -182,6 +182,7 @@ function CheckoutForm({ items }: { items: CartItem[] }) {
     if (customer.name.trim().split(/\s+/).length < 2) next.name = "Digite seu nome completo";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customer.email.trim()))
       next.email = "Digite um e-mail válido";
+    if (!validCpf(cpf)) next.cpf = "Digite um CPF válido";
     if (digits(customer.phone).length < 10) next.phone = "Digite um celular válido";
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -235,10 +236,6 @@ function CheckoutForm({ items }: { items: CartItem[] }) {
   };
 
   const submitPayment = async () => {
-    if (!validCpf(cpf)) {
-      setErrors({ cpf: "Digite um CPF válido" });
-      return;
-    }
     setPaying(true);
     try {
       const result = await createPixCharge({
@@ -298,6 +295,7 @@ function CheckoutForm({ items }: { items: CartItem[] }) {
               <>
                 <p className="font-medium text-[#0F172A]">{customer.name}</p>
                 <p>{customer.email}</p>
+                <p>CPF {cpf}</p>
                 <p>+55 {customer.phone}</p>
               </>
             }
@@ -326,6 +324,20 @@ function CheckoutForm({ items }: { items: CartItem[] }) {
                 onChange={(v) => {
                   setCustomer((c) => ({ ...c, email: v }));
                   clearError("email");
+                }}
+              />
+            </Field>
+            <Field label="CPF" htmlFor="cpf" error={errors.cpf}>
+              <Input
+                id="cpf"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="000.000.000-00"
+                value={cpf}
+                invalid={!!errors.cpf}
+                onChange={(v) => {
+                  setCpf(maskCpf(v));
+                  clearError("cpf");
                 }}
               />
             </Field>
@@ -568,19 +580,6 @@ function CheckoutForm({ items }: { items: CartItem[] }) {
                   <li>• Pagamento aprovado na hora</li>
                   <li>• O código PIX é válido por 30 minutos</li>
                 </ul>
-                <Field label="CPF" htmlFor="cpf" error={errors.cpf}>
-                  <Input
-                    id="cpf"
-                    inputMode="numeric"
-                    placeholder="000.000.000-00"
-                    value={cpf}
-                    invalid={!!errors.cpf}
-                    onChange={(v) => {
-                      setCpf(maskCpf(v));
-                      clearError("cpf");
-                    }}
-                  />
-                </Field>
                 <div className="mt-5 flex items-center justify-between text-[15px] font-bold text-black">
                   <span>Total</span>
                   <span>{formatBRL(total)}</span>
