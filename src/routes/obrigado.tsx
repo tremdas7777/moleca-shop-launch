@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2 } from "lucide-react";
 import { useEffect } from "react";
 import { useCart } from "@/lib/cart";
+import { track } from "@/lib/track";
 import { store } from "@/lib/store";
 
 declare global {
@@ -28,8 +29,10 @@ function ObrigadoPage() {
     // Conversão de venda: dispara apenas nesta página, para onde o cliente
     // retorna após o pagamento confirmado no checkout.
     window.fbq?.("track", "Purchase", { currency: "BRL" });
+    track({ event: "purchase" });
     clear();
-  }, [clear]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-16">

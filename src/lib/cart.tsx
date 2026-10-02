@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { findProduct, type Product } from "./store";
+import { track } from "./track";
 
 export type CartItem = { product: Product; quantity: number };
 
@@ -55,6 +56,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       add: (id, quantity = 1) => {
         setQuantities((q) => ({ ...q, [id]: (q[id] ?? 0) + quantity }));
         setOpen(true);
+        const p = findProduct(id);
+        track({
+          event: "add_to_cart",
+          productId: id,
+          productName: p?.name,
+          value: p ? (p.salePrice ?? p.price) * quantity : null,
+        });
       },
       remove: (id) =>
         setQuantities((q) => {
