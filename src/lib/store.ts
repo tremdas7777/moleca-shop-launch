@@ -344,7 +344,7 @@ const catalog: Product[] = [
       { units: 2, price: 497 },
       { units: 3, price: 697 },
     ],
-    gallery: [2, 3, 4, 5, 6, 7, 8].map((n) => `/produtos/carregador-portatil-ipe-p4/${n}.jpg`),
+    gallery: [2, 3, 5, 6, 8].map((n) => `/produtos/carregador-portatil-ipe-p4/${n}.jpg`),
     description:
       "Seu carro elétrico carregando em qualquer tomada de 20A: na garagem de casa, na casa de praia, no sítio ou na casa de um amigo. O IPE P4 entrega até 4,4 kW, reconhece 110V e 220V sozinho e vai no porta-malas dentro da própria bolsa de transporte. Chega de depender de eletroposto ou de ficar na mão no meio da viagem.",
     highlights: [
