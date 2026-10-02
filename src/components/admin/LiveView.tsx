@@ -17,7 +17,7 @@ import {
 
 const ONLINE_MS = 5 * 60_000;
 
-/** Janelas de tempo do Live view, em minutos. */
+/** Janelas de tempo do Live view, em minutos (limitadas ao período do topo). */
 const WINDOWS = [
   [5, "5 min"],
   [15, "15 min"],
