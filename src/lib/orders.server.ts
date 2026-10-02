@@ -127,7 +127,7 @@ export async function logIntegration(
 /** Envia o pedido para Utmify (todo status) e Meta CAPI (só quando pago). */
 export async function dispatchIntegrations(order: OrderRecord) {
   const { sendUtmifyOrder, readUtmifyToken } = await import("./utmify.server");
-  const { sendMetaPurchase, readMetaToken } = await import("./meta-capi.server");
+  const { sendMetaPurchase, hasCapiPixels } = await import("./meta-capi.server");
   const tasks: Promise<void>[] = [];
   if (readUtmifyToken()) {
     tasks.push(
@@ -136,7 +136,7 @@ export async function dispatchIntegrations(order: OrderRecord) {
       ),
     );
   }
-  if (order.status === "PAID" && readMetaToken()) {
+  if (order.status === "PAID" && (await hasCapiPixels())) {
     tasks.push(sendMetaPurchase(order).then((r) => logIntegration(order, "meta_purchase", r)));
   }
   await Promise.all(tasks);

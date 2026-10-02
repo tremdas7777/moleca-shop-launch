@@ -161,7 +161,7 @@ export const resendOrderIntegrations = createServerFn({ method: "POST" })
 export const getIntegrationStatus = createServerFn({ method: "POST" }).handler(async () => {
   if (!(await isAdmin())) return denied;
   const { readPixGateKey, postbackUrl } = await import("./pixgate.server");
-  const { readMetaToken } = await import("./meta-capi.server");
+  const { listPixels } = await import("./meta-pixels.server");
   const { readUtmifyToken } = await import("./utmify.server");
   const { ordersDb } = await import("./orders.server");
   const { META_PIXEL_ID, UTMIFY_PIXEL_ID } = await import("./tracking-config");
@@ -201,7 +201,23 @@ export const getIntegrationStatus = createServerFn({ method: "POST" }).handler(a
     ok: true as const,
     pixgate,
     webhookUrl: postbackUrl(),
-    meta: { pixelId: META_PIXEL_ID, capi: !!readMetaToken() },
+    meta: await (async () => {
+      const { table, pixels } = await listPixels();
+      return {
+        table,
+        fallbackPixelId: META_PIXEL_ID,
+        fallbackCapi: !!(process.env["META_CAPI_TOKEN"] ?? "").trim(),
+        // O token nunca volta para o navegador: só se está configurado e o final dele.
+        pixels: pixels.map((p) => ({
+          id: p.id,
+          name: p.name,
+          pixel_id: p.pixel_id,
+          active: p.active,
+          hasToken: !!p.capi_token,
+          tokenHint: p.capi_token ? `…${p.capi_token.slice(-4)}` : null,
+        })),
+      };
+    })(),
     utmify: { pixelId: UTMIFY_PIXEL_ID, api: !!readUtmifyToken() },
     ordersTable,
   };
@@ -233,12 +249,58 @@ export const testUtmify = createServerFn({ method: "POST" }).handler(async () =>
   return r.ok ? { ok: true as const } : { ok: false as const, error: r.error ?? "erro" };
 });
 
-/** Envia um Purchase de teste para a aba "Eventos de teste" do Gerenciador de Eventos. */
-export const testMetaCapi = createServerFn({ method: "POST" })
-  .validator(z.object({ testEventCode: z.string().min(3).max(40) }))
+/** Cria ou edita um Pixel. Token vazio na edição mantém o token atual. */
+export const saveMetaPixel = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string().uuid().optional(),
+      name: z.string().max(80),
+      pixel_id: z.string().regex(/^\d{8,20}$/, "ID do Pixel deve ter só números"),
+      capi_token: z.string().max(600),
+      active: z.boolean(),
+    }),
+  )
   .handler(async ({ data }) => {
     if (!(await isAdmin())) return denied;
+    const { pixelsDb, clearPixelCache } = await import("./meta-pixels.server");
+    const row: Record<string, unknown> = {
+      name: data.name.trim(),
+      pixel_id: data.pixel_id,
+      active: data.active,
+    };
+    if (data.capi_token.trim()) row["capi_token"] = data.capi_token.trim();
+    const { error } = data.id
+      ? await pixelsDb().update(row).eq("id", data.id)
+      : await pixelsDb().insert(row);
+    clearPixelCache();
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const };
+  });
+
+export const deleteMetaPixel = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    if (!(await isAdmin())) return denied;
+    const { pixelsDb, clearPixelCache } = await import("./meta-pixels.server");
+    const { error } = await pixelsDb().delete().eq("id", data.id);
+    clearPixelCache();
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const };
+  });
+
+/** Envia um Purchase de teste para a aba "Eventos de teste" do Gerenciador de Eventos. */
+export const testMetaPixel = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string().min(1), testEventCode: z.string().min(3).max(40) }))
+  .handler(async ({ data }) => {
+    if (!(await isAdmin())) return denied;
+    const { activePixels, listPixels } = await import("./meta-pixels.server");
     const { sendMetaPurchase } = await import("./meta-capi.server");
-    const r = await sendMetaPurchase(sampleOrder(), { testEventCode: data.testEventCode });
+    const pixel =
+      (await listPixels()).pixels.find((p) => p.id === data.id) ??
+      (await activePixels()).find((p) => p.id === data.id);
+    if (!pixel) return { ok: false as const, error: "Pixel não encontrado." };
+    if (!pixel.capi_token)
+      return { ok: false as const, error: "Esse Pixel não tem token da API de Conversões." };
+    const r = await sendMetaPurchase(sampleOrder(), { testEventCode: data.testEventCode, pixel });
     return r.ok ? { ok: true as const } : { ok: false as const, error: r.error ?? "erro" };
   });

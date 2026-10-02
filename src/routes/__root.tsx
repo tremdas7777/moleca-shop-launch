@@ -21,6 +21,7 @@ import { CartProvider } from "../lib/cart";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { store } from "../lib/store";
 import { track } from "../lib/track";
+import { getTrackingPixels } from "../lib/pixels.functions";
 import { META_PIXEL_ID, UTMIFY_PIXEL_ID } from "../lib/tracking-config";
 
 function NotFoundComponent() {
@@ -83,8 +84,22 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   );
 }
 
+/** Snippet do Meta Pixel com todos os Pixels ativos cadastrados no painel. */
+function metaPixelSnippet(ids: string[]) {
+  const inits = ids.map((id) => `fbq('init', '${id.replace(/\D/g, "")}');`).join("");
+  return `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');${inits}fbq('track', 'PageView');`;
+}
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
+  loader: async () => {
+    try {
+      return { metaPixels: (await getTrackingPixels()).meta };
+    } catch {
+      return { metaPixels: [META_PIXEL_ID] };
+    }
+  },
+  staleTime: Infinity,
+  head: ({ loaderData }) => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
@@ -97,11 +112,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     scripts: [
-      // Meta Pixel
-      {
-        type: "text/javascript",
-        children: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init', '${META_PIXEL_ID}');fbq('track', 'PageView');`,
-      },
+      // Meta Pixel (todos os Pixels ativos do painel)
+      ...(loaderData?.metaPixels.length
+        ? [{ type: "text/javascript", children: metaPixelSnippet(loaderData.metaPixels) }]
+        : []),
       // Utmfy Pixel
       {
         type: "text/javascript",
@@ -135,14 +149,6 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {/* Meta Pixel noscript fallback */}
-        <img
-          height="1"
-          width="1"
-          style={{ display: "none" }}
-          alt=""
-          src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
-        />
         {children}
         <Scripts />
       </body>

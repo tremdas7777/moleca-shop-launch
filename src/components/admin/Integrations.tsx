@@ -3,7 +3,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { Copy, Loader2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { getIntegrationStatus, testMetaCapi, testUtmify } from "@/lib/admin.functions";
+import {
+  deleteMetaPixel,
+  getIntegrationStatus,
+  saveMetaPixel,
+  testMetaPixel,
+  testUtmify,
+} from "@/lib/admin.functions";
 import { cn } from "@/lib/utils";
 import { Section, money } from "./shared";
 
@@ -62,9 +68,7 @@ const Secret = ({ name }: { name: string }) => (
 export function Integrations() {
   const fetchStatus = useServerFn(getIntegrationStatus);
   const runUtmify = useServerFn(testUtmify);
-  const runMeta = useServerFn(testMetaCapi);
   const q = useQuery({ queryKey: ["integrations"], queryFn: () => fetchStatus() });
-  const [testCode, setTestCode] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
   if (q.isLoading)
@@ -161,51 +165,7 @@ export function Integrations() {
           )}
         </Card>
 
-        <Card
-          title="Meta (Pixel + API de Conversões)"
-          status={
-            <Badge ok={s.meta.capi ? true : "warn"}>
-              {s.meta.capi ? "Pixel + CAPI" : "Só Pixel"}
-            </Badge>
-          }
-        >
-          <p>
-            Pixel: <b>{s.meta.pixelId}</b> — eventos PageView, ViewContent, AddToCart,
-            InitiateCheckout, AddPaymentInfo e Purchase (com valor).
-          </p>
-          <p>
-            API de Conversões (Purchase pelo servidor, deduplicado com o Pixel): secret{" "}
-            <Secret name="META_CAPI_TOKEN" />
-            {!s.meta.capi && (
-              <span className="block text-xs text-muted-foreground">
-                Gere em Gerenciador de Eventos → seu Pixel → Configurações → API de Conversões →
-                Gerar token de acesso.
-              </span>
-            )}
-          </p>
-          {s.meta.capi && (
-            <div className="flex flex-wrap gap-2">
-              <input
-                value={testCode}
-                onChange={(e) => setTestCode(e.target.value)}
-                placeholder="Código de teste (ex.: TEST12345)"
-                className="flex-1 border px-2 py-1.5 text-xs"
-              />
-              <button
-                disabled={!!busy || testCode.trim().length < 3}
-                onClick={() =>
-                  void test("meta", () => runMeta({ data: { testEventCode: testCode.trim() } }))
-                }
-                className="border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-              >
-                {busy === "meta" ? "Enviando…" : "Enviar Purchase de teste"}
-              </button>
-              <p className="w-full text-xs text-muted-foreground">
-                O código fica em Gerenciador de Eventos → Eventos de teste. O teste aparece só lá.
-              </p>
-            </div>
-          )}
-        </Card>
+        <MetaPixels status={s.meta} onChanged={() => void q.refetch()} />
 
         <Card
           title="Utmify"
@@ -239,5 +199,272 @@ export function Integrations() {
         </Card>
       </div>
     </div>
+  );
+}
+
+type MetaStatus = {
+  table: boolean;
+  fallbackPixelId: string;
+  fallbackCapi: boolean;
+  pixels: {
+    id: string;
+    name: string;
+    pixel_id: string;
+    active: boolean;
+    hasToken: boolean;
+    tokenHint: string | null;
+  }[];
+};
+
+export const META_PIXELS_SQL = `create table if not exists public.meta_pixels (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  name text not null default '',
+  pixel_id text not null,
+  capi_token text,
+  active boolean not null default true
+);
+
+alter table public.meta_pixels enable row level security;`;
+
+type Draft = { id?: string; name: string; pixel_id: string; capi_token: string; active: boolean };
+const emptyDraft: Draft = { name: "", pixel_id: "", capi_token: "", active: true };
+
+function MetaPixels({ status, onChanged }: { status: MetaStatus; onChanged: () => void }) {
+  const save = useServerFn(saveMetaPixel);
+  const remove = useServerFn(deleteMetaPixel);
+  const test = useServerFn(testMetaPixel);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [testCode, setTestCode] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const usingFallback = !status.table || status.pixels.length === 0;
+  const activeCount = usingFallback ? 1 : status.pixels.filter((p) => p.active).length;
+  const capiCount = usingFallback
+    ? Number(status.fallbackCapi)
+    : status.pixels.filter((p) => p.active && p.hasToken).length;
+
+  const run = async (
+    name: string,
+    fn: () => Promise<{ ok: boolean; error?: string }>,
+    okMsg: string,
+  ) => {
+    setBusy(name);
+    try {
+      const r = await fn();
+      if (r.ok) {
+        toast.success(okMsg);
+        onChanged();
+      } else toast.error(r.error ?? "Erro");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+    setBusy(null);
+  };
+
+  const submit = () => {
+    if (!draft) return;
+    void run(
+      "save",
+      async () => {
+        const r = await save({ data: draft });
+        if (r.ok) setDraft(null);
+        return r;
+      },
+      "Pixel salvo! Já vale para o site em até 30 segundos.",
+    );
+  };
+
+  return (
+    <Card
+      title="Meta (Pixels + API de Conversões)"
+      status={
+        <Badge ok={activeCount === 0 ? false : capiCount ? true : "warn"}>
+          {activeCount} ativo{activeCount === 1 ? "" : "s"} · {capiCount} com CAPI
+        </Badge>
+      }
+    >
+      {!status.table ? (
+        <>
+          <p>
+            Para cadastrar e trocar Pixels pelo painel, rode este SQL em Lovable → Cloud → SQL
+            editor. Enquanto isso, o site usa o Pixel padrão <b>{status.fallbackPixelId}</b>.
+          </p>
+          <pre className="max-h-40 overflow-auto bg-neutral-900 p-3 text-[11px] text-neutral-100">
+            {META_PIXELS_SQL}
+          </pre>
+          <button
+            onClick={() =>
+              void navigator.clipboard
+                .writeText(META_PIXELS_SQL)
+                .then(() => toast.success("Copiado!"))
+            }
+            className="flex items-center gap-1.5 border px-3 py-1.5 text-xs font-semibold"
+          >
+            <Copy className="h-3.5 w-3.5" /> Copiar SQL
+          </button>
+        </>
+      ) : (
+        <>
+          {usingFallback && (
+            <p className="text-xs text-muted-foreground">
+              Nenhum Pixel cadastrado: o site usa o Pixel padrão <b>{status.fallbackPixelId}</b>. Ao
+              cadastrar o primeiro, só os cadastrados passam a valer.
+            </p>
+          )}
+          <ul className="divide-y border">
+            {status.pixels.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center gap-2 p-2">
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    p.active ? "bg-emerald-500" : "bg-neutral-300",
+                  )}
+                />
+                <span className="min-w-0 flex-1">
+                  <b>{p.name || "Sem nome"}</b> · {p.pixel_id}
+                  <span className="block text-xs text-muted-foreground">
+                    {p.active ? "Ativo" : "Desativado"} ·{" "}
+                    {p.hasToken ? `CAPI ✓ (token ${p.tokenHint})` : "sem token CAPI (só navegador)"}
+                  </span>
+                </span>
+                <button
+                  disabled={!!busy}
+                  onClick={() =>
+                    void run(
+                      `t-${p.id}`,
+                      () => save({ data: { ...p, capi_token: "", active: !p.active } }),
+                      p.active ? "Pixel desativado" : "Pixel ativado",
+                    )
+                  }
+                  className="border px-2 py-1 text-xs"
+                >
+                  {p.active ? "Desativar" : "Ativar"}
+                </button>
+                <button
+                  onClick={() =>
+                    setDraft({
+                      id: p.id,
+                      name: p.name,
+                      pixel_id: p.pixel_id,
+                      capi_token: "",
+                      active: p.active,
+                    })
+                  }
+                  className="border px-2 py-1 text-xs"
+                >
+                  Editar
+                </button>
+                <button
+                  disabled={!!busy}
+                  onClick={() => {
+                    if (confirm(`Remover o Pixel ${p.pixel_id}?`))
+                      void run(`d-${p.id}`, () => remove({ data: { id: p.id } }), "Pixel removido");
+                  }}
+                  className="border px-2 py-1 text-xs text-red-700"
+                >
+                  Remover
+                </button>
+                {p.hasToken && (
+                  <button
+                    disabled={!!busy || testCode.trim().length < 3}
+                    onClick={() =>
+                      void run(
+                        `x-${p.id}`,
+                        () => test({ data: { id: p.id, testEventCode: testCode.trim() } }),
+                        "Purchase de teste enviado — confira em Eventos de teste",
+                      )
+                    }
+                    className="border px-2 py-1 text-xs disabled:opacity-40"
+                  >
+                    Testar
+                  </button>
+                )}
+              </li>
+            ))}
+            {status.pixels.length === 0 && (
+              <li className="p-3 text-xs text-muted-foreground">Nenhum Pixel cadastrado ainda.</li>
+            )}
+          </ul>
+
+          {status.pixels.some((p) => p.hasToken) && (
+            <input
+              value={testCode}
+              onChange={(e) => setTestCode(e.target.value)}
+              placeholder="Código de teste do Gerenciador de Eventos (para o botão Testar)"
+              className="w-full border px-2 py-1.5 text-xs"
+            />
+          )}
+
+          {draft ? (
+            <div className="space-y-2 border bg-neutral-50 p-3">
+              <p className="text-xs font-bold uppercase">
+                {draft.id ? "Editar Pixel" : "Novo Pixel"}
+              </p>
+              <input
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                placeholder="Nome (ex.: BM principal, conta nova…)"
+                className="w-full border bg-white px-2 py-2 text-sm"
+              />
+              <input
+                value={draft.pixel_id}
+                onChange={(e) =>
+                  setDraft({ ...draft, pixel_id: e.target.value.replace(/\D/g, "") })
+                }
+                inputMode="numeric"
+                placeholder="ID do Pixel (só números)"
+                className="w-full border bg-white px-2 py-2 text-sm"
+              />
+              <input
+                value={draft.capi_token}
+                onChange={(e) => setDraft({ ...draft, capi_token: e.target.value })}
+                type="password"
+                autoComplete="off"
+                placeholder={
+                  draft.id
+                    ? "Token da API de Conversões (deixe vazio para manter)"
+                    : "Token da API de Conversões (opcional)"
+                }
+                className="w-full border bg-white px-2 py-2 text-sm"
+              />
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={draft.active}
+                  onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+                />
+                Ativo
+              </label>
+              <div className="flex gap-2">
+                <button
+                  disabled={!!busy || draft.pixel_id.length < 8}
+                  onClick={submit}
+                  className="flex-1 bg-neutral-900 py-2 text-xs font-bold text-white uppercase disabled:opacity-50"
+                >
+                  {busy === "save" ? "Salvando…" : "Salvar Pixel"}
+                </button>
+                <button onClick={() => setDraft(null)} className="border px-3 text-xs">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setDraft(emptyDraft)}
+              className="w-full border-2 border-dashed py-2 text-xs font-bold uppercase"
+            >
+              + Adicionar Pixel
+            </button>
+          )}
+        </>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Todos os Pixels ativos recebem os eventos do navegador (PageView, ViewContent, AddToCart,
+        InitiateCheckout, AddPaymentInfo, Purchase). Os que têm token também recebem o Purchase pelo
+        servidor. Token: Gerenciador de Eventos → Pixel → Configurações → API de Conversões → Gerar
+        token de acesso.
+      </p>
+    </Card>
   );
 }

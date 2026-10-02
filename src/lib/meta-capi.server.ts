@@ -1,12 +1,13 @@
-/** Meta Conversions API (somente servidor). Token no secret META_CAPI_TOKEN. */
+/** Meta Conversions API (somente servidor). Tokens por Pixel, cadastrados no painel. */
 import { createHash } from "node:crypto";
-import { META_PIXEL_ID } from "./tracking-config";
+import { activePixels, type MetaPixel } from "./meta-pixels.server";
 import type { OrderRecord } from "./orders.server";
 
 const GRAPH_VERSION = "v23.0";
 
-export function readMetaToken(): string | null {
-  return (process.env["META_CAPI_TOKEN"] ?? "").trim() || null;
+/** Há pelo menos um Pixel ativo com token da API de Conversões? */
+export async function hasCapiPixels() {
+  return (await activePixels()).some((p) => p.capi_token);
 }
 
 const sha = (v: string) => createHash("sha256").update(v).digest("hex");
@@ -17,10 +18,16 @@ const norm = (v: string | null | undefined) =>
     .trim()
     .toLowerCase();
 
-/** Envia o evento Purchase do pedido pago. O event_id é o id da transação (deduplica com o Pixel). */
-export async function sendMetaPurchase(order: OrderRecord, opts: { testEventCode?: string } = {}) {
-  const token = readMetaToken();
-  if (!token) return { ok: false, error: "META_CAPI_TOKEN não configurado" };
+/**
+ * Envia o Purchase do pedido pago para cada Pixel ativo com token (ou só para `opts.pixel`).
+ * O event_id é o id da transação, o mesmo usado pelo Pixel no navegador (deduplicação).
+ */
+export async function sendMetaPurchase(
+  order: OrderRecord,
+  opts: { testEventCode?: string; pixel?: MetaPixel } = {},
+) {
+  const targets = (opts.pixel ? [opts.pixel] : await activePixels()).filter((p) => p.capi_token);
+  if (!targets.length) return { ok: false, error: "Nenhum Pixel com token da API de Conversões" };
 
   const [first, ...rest] = norm(order.customer_name).split(/\s+/);
   const phone = order.customer_phone.replace(/\D/g, "");
@@ -69,19 +76,24 @@ export async function sendMetaPurchase(order: OrderRecord, opts: { testEventCode
     ...(opts.testEventCode ? { test_event_code: opts.testEventCode } : {}),
   };
 
-  try {
-    const res = await fetch(
-      `https://graph.facebook.com/${GRAPH_VERSION}/${META_PIXEL_ID}/events?access_token=${encodeURIComponent(token)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    );
-    const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
-    if (!res.ok) return { ok: false, error: json.error?.message ?? `HTTP ${res.status}` };
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
-  }
+  const results = await Promise.all(
+    targets.map(async (pixel) => {
+      try {
+        const res = await fetch(
+          `https://graph.facebook.com/${GRAPH_VERSION}/${pixel.pixel_id}/events?access_token=${encodeURIComponent(pixel.capi_token!)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+        const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+        return res.ok ? null : `${pixel.pixel_id}: ${json.error?.message ?? `HTTP ${res.status}`}`;
+      } catch (err) {
+        return `${pixel.pixel_id}: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    }),
+  );
+  const errors = results.filter((r): r is string => !!r);
+  return errors.length ? { ok: false, error: errors.join(" | ") } : { ok: true };
 }
