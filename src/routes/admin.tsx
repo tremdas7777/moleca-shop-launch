@@ -1,9 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { adminLogin, adminLogout, adminStatus, getLiveData } from "@/lib/analytics.functions";
-import { formatBRL } from "@/lib/format";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Integrations } from "@/components/admin/Integrations";
+import { LiveView } from "@/components/admin/LiveView";
+import { Orders } from "@/components/admin/Orders";
+import { Overview } from "@/components/admin/Overview";
+import { Products, Sources } from "@/components/admin/Reports";
+import { money } from "@/components/admin/shared";
+import { getDashboard } from "@/lib/admin.functions";
+import { adminLogin, adminLogout, adminStatus } from "@/lib/analytics.functions";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -11,64 +19,39 @@ export const Route = createFileRoute("/admin")({
       { title: "Painel admin | Kazza Car Care" },
       { name: "description", content: "Painel interno da loja Kazza." },
       { name: "robots", content: "noindex, nofollow" },
-      { property: "og:title", content: "Painel admin | Kazza Car Care" },
-      { property: "og:description", content: "Painel interno da loja Kazza." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
     ],
   }),
   ssr: false,
   component: AdminPage,
 });
 
-const STEPS = [
-  { key: "page_view", label: "Entrou na loja" },
-  { key: "product_view", label: "Viu produto" },
-  { key: "add_to_cart", label: "Adicionou ao carrinho" },
-  { key: "checkout", label: "Foi para o checkout" },
-  { key: "purchase", label: "Pagou (voltou ao /obrigado)" },
+const TABS = [
+  ["overview", "Visão geral"],
+  ["live", "Live view"],
+  ["orders", "Pedidos"],
+  ["sources", "Origens / UTMs"],
+  ["products", "Produtos"],
+  ["integrations", "Integrações"],
 ] as const;
-const RANK: Record<string, number> = Object.fromEntries(STEPS.map((s, i) => [s.key, i]));
-const LABEL: Record<string, string> = Object.fromEntries(STEPS.map((s) => [s.key, s.label]));
+type Tab = (typeof TABS)[number][0];
 
-type Row = {
-  id: string;
-  visitor_id: string;
-  event: string;
-  path: string | null;
-  product_name: string | null;
-  value: number | null;
-  items: unknown;
-  utm_source: string | null;
-  utm_medium: string | null;
-  utm_campaign: string | null;
-  utm_content: string | null;
-  referrer: string | null;
-  device: string | null;
-  created_at: string;
-};
-
-function origin(r: Row) {
-  if (r.utm_source) return r.utm_source.toLowerCase();
-  if (r.referrer) {
-    try {
-      return new URL(r.referrer).hostname.replace("www.", "");
-    } catch {}
-  }
-  return "direto";
-}
-const time = (iso: string) =>
-  new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-const ago = (iso: string) => {
-  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  return s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}min` : `${Math.round(s / 3600)}h`;
-};
+const PERIODS = [
+  [1, "1h"],
+  [24, "24h"],
+  [168, "7 dias"],
+  [720, "30 dias"],
+  [2160, "90 dias"],
+] as const;
 
 function AdminPage() {
   const status = useServerFn(adminStatus);
   const q = useQuery({ queryKey: ["admin-status"], queryFn: () => status() });
   if (q.isLoading) return <div className="p-10 text-center text-sm">Carregando…</div>;
-  return q.data?.admin ? <Dashboard onLogout={() => q.refetch()} /> : <Login onOk={() => q.refetch()} />;
+  return q.data?.admin ? (
+    <Dashboard onLogout={() => q.refetch()} />
+  ) : (
+    <Login onOk={() => q.refetch()} />
+  );
 }
 
 function Login({ onOk }: { onOk: () => void }) {
@@ -100,7 +83,7 @@ function Login({ onOk }: { onOk: () => void }) {
         {err && <p className="text-sm text-destructive">Senha incorreta.</p>}
         <button
           disabled={busy}
-          className="w-full bg-primary py-3 text-[13px] font-bold uppercase tracking-wider text-primary-foreground"
+          className="w-full bg-primary py-3 text-[13px] font-bold tracking-wider text-primary-foreground uppercase"
         >
           Entrar
         </button>
@@ -109,226 +92,126 @@ function Login({ onOk }: { onOk: () => void }) {
   );
 }
 
+/** Bipe curto quando entra uma venda nova (o navegador só toca após um clique na página). */
+function beep() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+  } catch {
+    // ignora: opcional
+  }
+}
+
 function Dashboard({ onLogout }: { onLogout: () => void }) {
-  const fetchLive = useServerFn(getLiveData);
+  const fetchDashboard = useServerFn(getDashboard);
   const logout = useServerFn(adminLogout);
-  const [hours, setHours] = useState(24);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [hours, setHours] = useState<number>(24);
   const q = useQuery({
-    queryKey: ["live", hours],
-    queryFn: () => fetchLive({ data: { hours } }),
+    queryKey: ["dashboard", hours],
+    queryFn: () => fetchDashboard({ data: { hours } }),
     refetchInterval: 5000,
   });
-  const rows = (q.data?.ok ? q.data.rows : []) as Row[];
+  const data = q.data?.ok ? q.data : null;
 
-  const stats = useMemo(() => {
-    const visitors = new Map<string, Row[]>();
-    for (const r of rows) {
-      const list = visitors.get(r.visitor_id) ?? [];
-      list.push(r);
-      visitors.set(r.visitor_id, list);
+  // Aviso de venda nova (pedido que virou pago desde a última atualização).
+  const paidSeen = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!data) return;
+    const paid = data.orders.filter((o) => o.status === "PAID");
+    if (paidSeen.current) {
+      for (const o of paid) {
+        if (!paidSeen.current.has(o.id)) {
+          toast.success(`💰 Nova venda: ${money(o.amount)} — ${o.customer_name}`, {
+            duration: 10_000,
+          });
+          beep();
+        }
+      }
     }
-    const reach = STEPS.map((s) => new Set(rows.filter((r) => r.event === s.key).map((r) => r.visitor_id)).size);
-    const live = [...visitors.entries()]
-      .map(([id, evs]) => {
-        const last = evs[0]!;
-        const best = evs.reduce((m, e) => Math.max(m, RANK[e.event] ?? 0), 0);
-        const firstWithOrigin = [...evs].reverse().find((e) => e.utm_source || e.referrer) ?? last;
-        return { id, last, best, evs, origin: origin(firstWithOrigin), campaign: firstWithOrigin.utm_campaign };
-      })
-      .sort((a, b) => b.last.created_at.localeCompare(a.last.created_at));
-    const online = live.filter((v) => Date.now() - new Date(v.last.created_at).getTime() < 5 * 60_000);
-    const byOrigin = new Map<string, { visitors: number; carts: number; checkouts: number; value: number }>();
-    for (const v of live) {
-      const o = byOrigin.get(v.origin) ?? { visitors: 0, carts: 0, checkouts: 0, value: 0 };
-      o.visitors++;
-      if (v.best >= 2) o.carts++;
-      const ck = v.evs.filter((e) => e.event === "checkout");
-      if (ck.length) o.checkouts++;
-      o.value += ck.reduce((s, e) => s + Number(e.value ?? 0), 0);
-      byOrigin.set(v.origin, o);
-    }
-    const checkoutValue = rows.filter((r) => r.event === "checkout").reduce((s, r) => s + Number(r.value ?? 0), 0);
-    return { reach, live, online, byOrigin: [...byOrigin.entries()].sort((a, b) => b[1].visitors - a[1].visitors), checkoutValue };
-  }, [rows]);
+    paidSeen.current = new Set(paid.map((o) => o.id));
+  }, [data]);
 
-  const sel = stats.live.find((v) => v.id === selected);
+  if (q.data && !q.data.ok) {
+    onLogout();
+  }
 
   return (
     <div className="min-h-screen bg-neutral-100 text-neutral-900">
-      <header className="flex flex-wrap items-center justify-between gap-3 bg-neutral-950 px-6 py-4 text-white">
-        <div className="flex items-center gap-3">
-          <span className="font-display text-xl font-bold uppercase">Kazza · Live view</span>
-          <span className="flex items-center gap-1.5 text-xs">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-primary" /> ao vivo · atualiza a cada 5s
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          {[1, 24, 168, 720].map((h) => (
+      <header className="sticky top-0 z-30 bg-neutral-950 text-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="font-display text-xl font-bold uppercase">Kazza · Painel</span>
+            <span className="flex items-center gap-1.5 text-xs text-neutral-300">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-primary" /> ao vivo
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {PERIODS.map(([h, label]) => (
+              <button
+                key={h}
+                onClick={() => setHours(h)}
+                className={cn(
+                  "px-2.5 py-1.5 text-xs font-semibold uppercase",
+                  hours === h ? "bg-primary" : "bg-white/10",
+                )}
+              >
+                {label}
+              </button>
+            ))}
             <button
-              key={h}
-              onClick={() => setHours(h)}
-              className={`px-3 py-1.5 text-xs font-semibold uppercase ${hours === h ? "bg-primary" : "bg-white/10"}`}
+              onClick={async () => {
+                await logout();
+                onLogout();
+              }}
+              className="ml-2 text-xs underline"
             >
-              {h === 1 ? "1h" : h === 24 ? "24h" : h === 168 ? "7 dias" : "30 dias"}
+              Sair
+            </button>
+          </div>
+        </div>
+        <nav className="flex gap-1 overflow-x-auto px-4 sm:px-6">
+          {TABS.map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={cn(
+                "shrink-0 border-b-2 px-3 py-2.5 text-xs font-bold uppercase",
+                tab === k
+                  ? "border-primary text-white"
+                  : "border-transparent text-neutral-400 hover:text-white",
+              )}
+            >
+              {label}
             </button>
           ))}
-          <button
-            onClick={async () => {
-              await logout();
-              onLogout();
-            }}
-            className="ml-2 text-xs underline"
-          >
-            Sair
-          </button>
-        </div>
+        </nav>
       </header>
 
-      <div className="mx-auto max-w-7xl space-y-6 p-6">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card label="Online agora (5 min)" value={String(stats.online.length)} highlight />
-          <Card label="Visitantes no período" value={String(stats.live.length)} />
-          <Card label="Valor enviado ao checkout" value={formatBRL(stats.checkoutValue)} />
-        </div>
-
-        <section className="border bg-white p-5">
-          <h2 className="mb-4 font-display text-lg font-bold uppercase">Funil até o checkout</h2>
-          <div className="space-y-2">
-            {STEPS.map((s, i) => {
-              const n = stats.reach[i] ?? 0;
-              const top = stats.reach[0] || 1;
-              const prev = i ? stats.reach[i - 1] || 0 : n;
-              return (
-                <div key={s.key} className="flex items-center gap-3 text-sm">
-                  <span className="w-56 shrink-0">{s.label}</span>
-                  <div className="h-7 flex-1 bg-neutral-100">
-                    <div className="h-full bg-primary" style={{ width: `${(n / top) * 100}%` }} />
-                  </div>
-                  <span className="w-12 text-right font-bold">{n}</span>
-                  <span className="w-20 text-right text-xs text-muted-foreground">
-                    {i ? `${prev ? Math.round((n / prev) * 100) : 0}% da etapa` : ""}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section className="border bg-white p-5">
-            <h2 className="mb-3 font-display text-lg font-bold uppercase">Visitantes (clique para ver)</h2>
-            <div className="max-h-[480px] divide-y overflow-y-auto text-sm">
-              {stats.live.length === 0 && <p className="py-6 text-center text-muted-foreground">Nenhum visitante ainda.</p>}
-              {stats.live.slice(0, 200).map((v) => {
-                const isOn = stats.online.includes(v);
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => setSelected(v.id)}
-                    className={`flex w-full items-center gap-3 py-2.5 text-left hover:bg-neutral-50 ${selected === v.id ? "bg-neutral-100" : ""}`}
-                  >
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${isOn ? "bg-primary" : "bg-neutral-300"}`} />
-                    <span className="flex-1">
-                      <span className="font-semibold">{LABEL[STEPS[v.best]!.key]}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {v.origin}
-                        {v.campaign ? ` · ${v.campaign}` : ""} · {v.last.device ?? ""} · agora em {v.last.path}
-                      </span>
-                    </span>
-                    <span className="text-xs text-muted-foreground">há {ago(v.last.created_at)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="border bg-white p-5">
-            <h2 className="mb-3 font-display text-lg font-bold uppercase">Linha do tempo do visitante</h2>
-            {!sel ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Selecione um visitante ao lado.</p>
-            ) : (
-              <>
-                <div className="mb-3 text-xs text-muted-foreground">
-                  Origem: <b>{sel.origin}</b>
-                  {sel.campaign && <> · Campanha: <b>{sel.campaign}</b></>}
-                  {sel.evs.find((e) => e.utm_content)?.utm_content && (
-                    <> · Anúncio: <b>{sel.evs.find((e) => e.utm_content)!.utm_content}</b></>
-                  )}
-                </div>
-                <ol className="max-h-[440px] space-y-2 overflow-y-auto border-l-2 border-primary pl-4 text-sm">
-                  {[...sel.evs].reverse().map((e) => (
-                    <li key={e.id}>
-                      <span className="text-xs text-muted-foreground">{time(e.created_at)}</span>{" "}
-                      <b>{LABEL[e.event] ?? e.event}</b>
-                      <span className="block text-xs text-muted-foreground">
-                        {e.product_name ?? e.path}
-                        {e.value ? ` · ${formatBRL(Number(e.value))}` : ""}
-                        {Array.isArray(e.items)
-                          ? ` · ${(e.items as { name: string; quantity: number }[]).map((i) => `${i.quantity}x ${i.name}`).join(", ")}`
-                          : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </>
-            )}
-          </section>
-        </div>
-
-        <section className="border bg-white p-5">
-          <h2 className="mb-3 font-display text-lg font-bold uppercase">Origem do anúncio</h2>
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="py-2">Origem</th>
-                <th>Visitantes</th>
-                <th>Carrinho</th>
-                <th>Checkout</th>
-                <th>Conversão p/ checkout</th>
-                <th className="text-right">Valor no checkout</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {stats.byOrigin.map(([o, s]) => (
-                <tr key={o}>
-                  <td className="py-2 font-semibold">{o}</td>
-                  <td>{s.visitors}</td>
-                  <td>{s.carts}</td>
-                  <td>{s.checkouts}</td>
-                  <td>{s.visitors ? Math.round((s.checkouts / s.visitors) * 100) : 0}%</td>
-                  <td className="text-right">{formatBRL(s.value)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-
-        <section className="border bg-white p-5">
-          <h2 className="mb-3 font-display text-lg font-bold uppercase">Eventos em tempo real</h2>
-          <div className="max-h-96 divide-y overflow-y-auto text-sm">
-            {rows.slice(0, 150).map((r) => (
-              <div key={r.id} className="flex gap-3 py-2">
-                <span className="w-20 shrink-0 text-xs text-muted-foreground">{time(r.created_at)}</span>
-                <span className="w-48 shrink-0 font-semibold">{LABEL[r.event] ?? r.event}</span>
-                <span className="flex-1 truncate text-muted-foreground">
-                  {r.product_name ?? r.path} {r.value ? `· ${formatBRL(Number(r.value))}` : ""}
-                </span>
-                <span className="text-xs text-muted-foreground">{origin(r)}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function Card({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className={`border p-5 ${highlight ? "bg-primary text-primary-foreground" : "bg-white"}`}>
-      <p className="text-xs uppercase opacity-80">{label}</p>
-      <p className="mt-1 font-display text-3xl font-bold">{value}</p>
+      <main className="mx-auto max-w-7xl p-4 sm:p-6">
+        {tab === "orders" ? (
+          <Orders />
+        ) : tab === "integrations" ? (
+          <Integrations />
+        ) : !data ? (
+          <div className="p-10 text-center text-sm">Carregando dados…</div>
+        ) : tab === "overview" ? (
+          <Overview data={data} hours={hours} />
+        ) : tab === "live" ? (
+          <LiveView data={data} />
+        ) : tab === "sources" ? (
+          <Sources data={data} />
+        ) : (
+          <Products data={data} />
+        )}
+      </main>
     </div>
   );
 }

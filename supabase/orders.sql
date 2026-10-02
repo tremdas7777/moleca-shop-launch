@@ -22,3 +22,16 @@ create index if not exists orders_created_at_idx on public.orders (created_at de
 
 -- Só o servidor (service role) lê e grava; nenhum acesso público.
 alter table public.orders enable row level security;
+
+-- 2ª parte (painel admin): rastreamento/UTMs, envio e log de integrações. Pode rodar mais de uma vez.
+alter table public.orders
+  add column if not exists tracking jsonb,
+  add column if not exists visitor_id text,
+  add column if not exists fulfillment_status text not null default 'pending',
+  add column if not exists tracking_code text,
+  add column if not exists shipped_at timestamptz,
+  add column if not exists notes text,
+  add column if not exists integrations jsonb;
+
+create index if not exists orders_status_idx on public.orders (status);
+create index if not exists orders_visitor_idx on public.orders (visitor_id);

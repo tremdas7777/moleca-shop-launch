@@ -1,6 +1,6 @@
 /** Cliente HTTP da PixGate (somente servidor). Nunca importe no browser. */
 
-import { getRequestUrl } from "@tanstack/react-start/server";
+import { getRequestHeader, getRequestUrl } from "@tanstack/react-start/server";
 
 const PIXGATE_API_BASE = "https://app.pixgateip.com/api";
 
@@ -9,6 +9,16 @@ export function postbackUrl(): string | null {
   const url = getRequestUrl({ xForwardedHost: true, xForwardedProto: true });
   if (url.protocol !== "https:" || /^(localhost|127\.|\[::1\])/.test(url.hostname)) return null;
   return `${url.origin}/api/pixgate/webhook`;
+}
+
+/** IP e navegador do comprador (usados pela Meta CAPI e Utmify). */
+export function requestMeta(): { ip?: string; user_agent?: string } {
+  const ip =
+    getRequestHeader("cf-connecting-ip") ??
+    getRequestHeader("x-real-ip") ??
+    getRequestHeader("x-forwarded-for")?.split(",")[0]?.trim();
+  const ua = getRequestHeader("user-agent");
+  return { ...(ip ? { ip } : {}), ...(ua ? { user_agent: ua.slice(0, 400) } : {}) };
 }
 
 export function readPixGateKey(): string | null {

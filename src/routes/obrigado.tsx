@@ -2,14 +2,15 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2 } from "lucide-react";
 import { useEffect } from "react";
 import { useCart } from "@/lib/cart";
+import { PURCHASE_KEY } from "@/lib/checkout";
 import { track } from "@/lib/track";
 import { store } from "@/lib/store";
 
-declare global {
-  interface Window {
-    fbq?: (...args: unknown[]) => void;
-  }
-}
+type PaidOrder = {
+  transactionId: string;
+  value: number;
+  items: { id: string; name: string; quantity: number; price: number }[];
+};
 
 export const Route = createFileRoute("/obrigado")({
   head: () => ({
@@ -28,8 +29,38 @@ function ObrigadoPage() {
   useEffect(() => {
     // Conversão de venda: dispara apenas nesta página, para onde o cliente
     // retorna após o pagamento confirmado no checkout.
-    window.fbq?.("track", "Purchase", { currency: "BRL" });
-    track({ event: "purchase" });
+    let purchase: PaidOrder | null = null;
+    try {
+      purchase = JSON.parse(sessionStorage.getItem(PURCHASE_KEY) ?? "null");
+    } catch {
+      // ignora: opcional
+    }
+    if (purchase) {
+      // eventID = id da transação: o Meta deduplica com o Purchase enviado pela CAPI.
+      window.fbq?.(
+        "track",
+        "Purchase",
+        {
+          currency: "BRL",
+          value: purchase.value,
+          content_type: "product",
+          content_ids: purchase.items.map((i) => i.id),
+          contents: purchase.items.map((i) => ({
+            id: i.id,
+            quantity: i.quantity,
+            item_price: i.price,
+          })),
+          num_items: purchase.items.reduce((s, i) => s + i.quantity, 0),
+        },
+        { eventID: purchase.transactionId },
+      );
+      track({
+        event: "purchase",
+        value: purchase.value,
+        items: purchase.items.map((i) => ({ name: i.name, quantity: i.quantity })),
+      });
+      sessionStorage.removeItem(PURCHASE_KEY);
+    }
     clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -42,8 +73,8 @@ function ObrigadoPage() {
           Pedido confirmado!
         </h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Obrigado pela sua compra na {store.name}. Você receberá os detalhes do pedido e do
-          envio por e-mail.
+          Obrigado pela sua compra na {store.name}. Você receberá os detalhes do pedido e do envio
+          por e-mail.
         </p>
         <Link
           to="/"

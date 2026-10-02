@@ -9,7 +9,7 @@ import {
   useRouterState,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { CartSheet } from "../components/store/CartSheet";
@@ -21,6 +21,7 @@ import { CartProvider } from "../lib/cart";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { store } from "../lib/store";
 import { track } from "../lib/track";
+import { META_PIXEL_ID, UTMIFY_PIXEL_ID } from "../lib/tracking-config";
 
 function NotFoundComponent() {
   return (
@@ -99,12 +100,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // Meta Pixel
       {
         type: "text/javascript",
-        children: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init', '2456602311535795');fbq('track', 'PageView');`,
+        children: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init', '${META_PIXEL_ID}');fbq('track', 'PageView');`,
       },
       // Utmfy Pixel
       {
         type: "text/javascript",
-        children: `window.pixelId = "6abb27848b76c002bc343089";(function(){var s=document.createElement("script");s.src="https://cdn.utmify.com.br/scripts/pixel/pixel.js";s.async=true;s.defer=true;document.head.appendChild(s);})();`,
+        children: `window.pixelId = "${UTMIFY_PIXEL_ID}";(function(){var s=document.createElement("script");s.src="https://cdn.utmify.com.br/scripts/pixel/pixel.js";s.async=true;s.defer=true;document.head.appendChild(s);})();`,
       },
     ],
     links: [
@@ -140,7 +141,7 @@ function RootShell({ children }: { children: ReactNode }) {
           width="1"
           style={{ display: "none" }}
           alt=""
-          src="https://www.facebook.com/tr?id=2456602311535795&ev=PageView&noscript=1"
+          src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
         />
         {children}
         <Scripts />
@@ -156,8 +157,13 @@ function RootComponent() {
   // Admin e checkout têm layout próprio, sem cabeçalho/rodapé da loja.
   const bare = isAdmin || pathname.startsWith("/checkout");
 
+  const firstView = useRef(true);
   useEffect(() => {
     track({ event: "page_view", path: pathname });
+    // O snippet do Pixel já conta a primeira página; as navegações seguintes são client-side.
+    if (firstView.current) firstView.current = false;
+    else if (!isAdmin) window.fbq?.("track", "PageView");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   return (

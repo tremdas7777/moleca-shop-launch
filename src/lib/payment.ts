@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { findShipping } from "./shipping";
 import { findProduct } from "./store";
+import type { OrderTrackingData } from "./orders.server";
 
 const orderInput = z.object({
   items: z
@@ -10,6 +11,22 @@ const orderInput = z.object({
     .max(40),
   shippingId: z.string().min(1),
   device: z.enum(["android", "ios", "web"]).optional(),
+  tracking: z
+    .object({
+      visitorId: z.string().max(64),
+      utm_source: z.string().max(200).optional(),
+      utm_medium: z.string().max(200).optional(),
+      utm_campaign: z.string().max(300).optional(),
+      utm_content: z.string().max(300).optional(),
+      utm_term: z.string().max(300).optional(),
+      src: z.string().max(300).optional(),
+      sck: z.string().max(300).optional(),
+      referrer: z.string().max(500).optional(),
+      fbp: z.string().max(200).optional(),
+      fbc: z.string().max(500).optional(),
+      page_url: z.string().max(1000).optional(),
+    })
+    .optional(),
   customer: z.object({
     name: z.string().min(3).max(120),
     email: z.string().email().max(160),
@@ -85,8 +102,14 @@ export const createPixCharge = createServerFn({ method: "POST" })
         ...(postback ? { postback } : {}),
         ...(data.device ? { device: data.device } : {}),
       });
-      const { saveOrder } = await import("./orders.server");
-      await saveOrder({
+      const { saveOrder, dispatchIntegrations } = await import("./orders.server");
+      const { requestMeta } = await import("./pixgate.server");
+      const tracking = Object.fromEntries(
+        Object.entries({ ...data.tracking, ...requestMeta(), device: data.device }).filter(
+          ([, v]) => v != null && v !== "",
+        ),
+      ) as OrderTrackingData;
+      const order = await saveOrder({
         transaction_id: charge.id,
         status: "PENDING",
         amount,
@@ -98,7 +121,11 @@ export const createPixCharge = createServerFn({ method: "POST" })
         customer_phone: data.customer.phone,
         customer_document: data.customer.document,
         address: data.address,
+        tracking,
+        visitor_id: data.tracking?.visitorId ?? null,
       });
+      // Utmify recebe a venda como "aguardando pagamento".
+      if (order) await dispatchIntegrations(order);
       return { ok: true, transactionId: charge.id, amount, pixCode: charge.pix };
     } catch (err) {
       console.error("[pix] erro ao criar cobrança", err);

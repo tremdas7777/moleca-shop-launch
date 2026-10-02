@@ -5,6 +5,8 @@ import { findProduct } from "./store";
 import { track } from "./track";
 
 const CHECKOUT_KEY = "kazza-checkout";
+/** Último pedido pago, lido pela página /obrigado para o evento Purchase. */
+export const PURCHASE_KEY = "kazza-purchase";
 
 export type CheckoutLine = { id: string; quantity: number };
 

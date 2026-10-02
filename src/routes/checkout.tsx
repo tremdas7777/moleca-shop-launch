@@ -6,7 +6,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/store/SiteHeader";
 import type { CartItem } from "@/lib/cart";
-import { readCheckoutItems } from "@/lib/checkout";
+import { PURCHASE_KEY, readCheckoutItems } from "@/lib/checkout";
+import { getOrderTracking } from "@/lib/track";
 import { formatBRL } from "@/lib/format";
 import {
   checkPixStatus,
@@ -244,6 +245,7 @@ function CheckoutForm({ items }: { items: CartItem[] }) {
           items: items.map((i) => ({ id: i.product.id, quantity: i.quantity })),
           shippingId,
           device: detectDevice(),
+          tracking: getOrderTracking(),
           customer: {
             name: customer.name.trim(),
             email: customer.email.trim(),
@@ -261,8 +263,15 @@ function CheckoutForm({ items }: { items: CartItem[] }) {
           },
         },
       });
-      if (result.ok) setPix(result);
-      else toast.error(result.error);
+      if (result.ok) {
+        setPix(result);
+        window.fbq?.("track", "AddPaymentInfo", {
+          currency: "BRL",
+          value: result.amount,
+          content_type: "product",
+          content_ids: items.map((i) => i.product.id),
+        });
+      } else toast.error(result.error);
     } catch (err) {
       console.error("[pix] falha na chamada ao servidor", err);
       toast.error(
@@ -572,7 +581,26 @@ function CheckoutForm({ items }: { items: CartItem[] }) {
             }
           >
             {pix ? (
-              <PixResult pix={pix} onPaid={() => navigate({ to: "/obrigado" })} />
+              <PixResult
+                pix={pix}
+                onPaid={() => {
+                  // A página /obrigado dispara o Purchase com valor e o mesmo event_id da CAPI.
+                  sessionStorage.setItem(
+                    PURCHASE_KEY,
+                    JSON.stringify({
+                      transactionId: pix.transactionId,
+                      value: pix.amount,
+                      items: items.map((i) => ({
+                        id: i.product.id,
+                        name: i.product.name,
+                        quantity: i.quantity,
+                        price: i.product.salePrice ?? i.product.price,
+                      })),
+                    }),
+                  );
+                  void navigate({ to: "/obrigado" });
+                }}
+              />
             ) : (
               <>
                 <div className="mt-4 flex w-full items-center gap-3 rounded-[0.5rem] bg-white p-3 ring-1 ring-[#3FCB13]">
