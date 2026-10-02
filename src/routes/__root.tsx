@@ -93,9 +93,10 @@ function metaPixelSnippet(ids: string[]) {
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   loader: async () => {
     try {
-      return { metaPixels: (await getTrackingPixels()).meta };
+      const pixels = await getTrackingPixels();
+      return { metaPixels: pixels.meta, utmifyPixel: pixels.utmify };
     } catch {
-      return { metaPixels: [META_PIXEL_ID] };
+      return { metaPixels: [META_PIXEL_ID], utmifyPixel: UTMIFY_PIXEL_ID };
     }
   },
   staleTime: Infinity,
@@ -119,7 +120,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // Utmfy Pixel
       {
         type: "text/javascript",
-        children: `window.pixelId = "${UTMIFY_PIXEL_ID}";(function(){var s=document.createElement("script");s.src="https://cdn.utmify.com.br/scripts/pixel/pixel.js";s.async=true;s.defer=true;document.head.appendChild(s);})();`,
+        children: `window.pixelId = "${(loaderData?.utmifyPixel ?? UTMIFY_PIXEL_ID).replace(/[^a-zA-Z0-9]/g, "")}";(function(){var s=document.createElement("script");s.src="https://cdn.utmify.com.br/scripts/pixel/pixel.js";s.async=true;s.defer=true;document.head.appendChild(s);})();`,
       },
     ],
     links: [

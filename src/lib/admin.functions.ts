@@ -162,7 +162,7 @@ export const getIntegrationStatus = createServerFn({ method: "POST" }).handler(a
   if (!(await isAdmin())) return denied;
   const { readPixGateKey, postbackUrl } = await import("./pixgate.server");
   const { listPixels } = await import("./meta-pixels.server");
-  const { readUtmifyToken } = await import("./utmify.server");
+  const { getSetting, settingsTableExists } = await import("./settings.server");
   const { ordersDb } = await import("./orders.server");
   const { META_PIXEL_ID, UTMIFY_PIXEL_ID } = await import("./tracking-config");
 
@@ -218,7 +218,18 @@ export const getIntegrationStatus = createServerFn({ method: "POST" }).handler(a
         })),
       };
     })(),
-    utmify: { pixelId: UTMIFY_PIXEL_ID, api: !!readUtmifyToken() },
+    utmify: await (async () => {
+      const panelToken = await getSetting("utmify_api_token");
+      const envToken = (process.env["UTMIFY_API_TOKEN"] ?? "").trim();
+      return {
+        table: await settingsTableExists(),
+        pixelId: (await getSetting("utmify_pixel_id")) || UTMIFY_PIXEL_ID,
+        defaultPixelId: UTMIFY_PIXEL_ID,
+        api: !!(panelToken || envToken),
+        tokenSource: panelToken ? ("painel" as const) : envToken ? ("secret" as const) : null,
+        tokenHint: panelToken ? `…${panelToken.slice(-4)}` : null,
+      };
+    })(),
     ordersTable,
   };
 });
@@ -303,4 +314,28 @@ export const testMetaPixel = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Esse Pixel não tem token da API de Conversões." };
     const r = await sendMetaPurchase(sampleOrder(), { testEventCode: data.testEventCode, pixel });
     return r.ok ? { ok: true as const } : { ok: false as const, error: r.error ?? "erro" };
+  });
+
+/** Token da API e Pixel da Utmify. Campo vazio no token mantém o atual; `clearToken` apaga. */
+export const saveUtmifySettings = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      token: z.string().max(400),
+      clearToken: z.boolean(),
+      pixelId: z.string().regex(/^[a-zA-Z0-9]{0,64}$/, "ID do Pixel inválido"),
+    }),
+  )
+  .handler(async ({ data }) => {
+    if (!(await isAdmin())) return denied;
+    const { setSetting } = await import("./settings.server");
+    const errors: string[] = [];
+    if (data.clearToken || data.token.trim()) {
+      const e = await setSetting("utmify_api_token", data.clearToken ? "" : data.token);
+      if (e) errors.push(e);
+    }
+    const e = await setSetting("utmify_pixel_id", data.pixelId);
+    if (e) errors.push(e);
+    return errors.length
+      ? { ok: false as const, error: errors.join(" | ") }
+      : { ok: true as const };
   });

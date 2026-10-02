@@ -1,10 +1,14 @@
-/** Envio de vendas para a Utmify (somente servidor). Token no secret UTMIFY_API_TOKEN. */
+/** Envio de vendas para a Utmify (somente servidor). Token configurado no painel (ou secret). */
 import type { OrderRecord } from "./orders.server";
+import { getSetting } from "./settings.server";
 
 const UTMIFY_URL = "https://api.utmify.com.br/api-credentials/orders";
 
-export function readUtmifyToken(): string | null {
-  return (process.env["UTMIFY_API_TOKEN"] ?? "").trim() || null;
+/** Token do painel tem prioridade; o secret UTMIFY_API_TOKEN fica como alternativa. */
+export async function readUtmifyToken(): Promise<string | null> {
+  return (
+    (await getSetting("utmify_api_token")) || (process.env["UTMIFY_API_TOKEN"] ?? "").trim() || null
+  );
 }
 
 /** "YYYY-MM-DD HH:MM:SS" em UTC, formato exigido pela Utmify. */
@@ -19,8 +23,8 @@ const STATUS: Record<string, "waiting_payment" | "paid" | "refused" | "refunded"
 };
 
 export async function sendUtmifyOrder(order: OrderRecord, opts: { isTest?: boolean } = {}) {
-  const token = readUtmifyToken();
-  if (!token) return { ok: false, error: "UTMIFY_API_TOKEN não configurado" };
+  const token = await readUtmifyToken();
+  if (!token) return { ok: false, error: "Token da Utmify não configurado" };
 
   const t = order.tracking ?? {};
   const totalCents = Math.round(Number(order.amount) * 100);

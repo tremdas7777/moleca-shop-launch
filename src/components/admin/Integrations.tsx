@@ -7,6 +7,7 @@ import {
   deleteMetaPixel,
   getIntegrationStatus,
   saveMetaPixel,
+  saveUtmifySettings,
   testMetaPixel,
   testUtmify,
 } from "@/lib/admin.functions";
@@ -67,9 +68,7 @@ const Secret = ({ name }: { name: string }) => (
 
 export function Integrations() {
   const fetchStatus = useServerFn(getIntegrationStatus);
-  const runUtmify = useServerFn(testUtmify);
   const q = useQuery({ queryKey: ["integrations"], queryFn: () => fetchStatus() });
-  const [busy, setBusy] = useState<string | null>(null);
 
   if (q.isLoading)
     return (
@@ -80,17 +79,6 @@ export function Integrations() {
   if (!q.data?.ok) return <p className="text-sm">Não foi possível carregar as integrações.</p>;
   const s = q.data;
 
-  const test = async (name: string, fn: () => Promise<{ ok: boolean; error?: string }>) => {
-    setBusy(name);
-    try {
-      const r = await fn();
-      if (r.ok) toast.success("Teste enviado com sucesso!");
-      else toast.error(r.error ?? "Falhou");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Falhou");
-    }
-    setBusy(null);
-  };
   const copy = (t: string) =>
     void navigator.clipboard.writeText(t).then(() => toast.success("Copiado!"));
 
@@ -167,36 +155,7 @@ export function Integrations() {
 
         <MetaPixels status={s.meta} onChanged={() => void q.refetch()} />
 
-        <Card
-          title="Utmify"
-          status={
-            <Badge ok={s.utmify.api ? true : "warn"}>
-              {s.utmify.api ? "Pixel + API" : "Só Pixel"}
-            </Badge>
-          }
-        >
-          <p>
-            Pixel: <b>{s.utmify.pixelId}</b> (rastreia as UTMs no site).
-          </p>
-          <p>
-            Envio de vendas (PIX gerado → aguardando, pago → aprovado, com UTMs): secret{" "}
-            <Secret name="UTMIFY_API_TOKEN" />
-            {!s.utmify.api && (
-              <span className="block text-xs text-muted-foreground">
-                Gere em Utmify → Integrações → Webhooks → Credenciais de API → Adicionar credencial.
-              </span>
-            )}
-          </p>
-          {s.utmify.api && (
-            <button
-              disabled={!!busy}
-              onClick={() => void test("utmify", () => runUtmify())}
-              className="border px-3 py-1.5 text-xs font-semibold"
-            >
-              {busy === "utmify" ? "Enviando…" : "Testar conexão (não cria venda)"}
-            </button>
-          )}
-        </Card>
+        <UtmifyCard status={s.utmify} onChanged={() => void q.refetch()} />
       </div>
     </div>
   );
@@ -464,6 +423,163 @@ function MetaPixels({ status, onChanged }: { status: MetaStatus; onChanged: () =
         InitiateCheckout, AddPaymentInfo, Purchase). Os que têm token também recebem o Purchase pelo
         servidor. Token: Gerenciador de Eventos → Pixel → Configurações → API de Conversões → Gerar
         token de acesso.
+      </p>
+    </Card>
+  );
+}
+
+export const APP_SETTINGS_SQL = `create table if not exists public.app_settings (
+  key text primary key,
+  value text,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.app_settings enable row level security;`;
+
+type UtmifyStatus = {
+  table: boolean;
+  pixelId: string;
+  defaultPixelId: string;
+  api: boolean;
+  tokenSource: "painel" | "secret" | null;
+  tokenHint: string | null;
+};
+
+function UtmifyCard({ status, onChanged }: { status: UtmifyStatus; onChanged: () => void }) {
+  const save = useServerFn(saveUtmifySettings);
+  const runTest = useServerFn(testUtmify);
+  const [token, setToken] = useState("");
+  const [pixelId, setPixelId] = useState(status.pixelId);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const run = async (
+    name: string,
+    fn: () => Promise<{ ok: boolean; error?: string }>,
+    okMsg: string,
+  ) => {
+    setBusy(name);
+    try {
+      const r = await fn();
+      if (r.ok) {
+        toast.success(okMsg);
+        onChanged();
+      } else toast.error(r.error ?? "Erro");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    }
+    setBusy(null);
+  };
+
+  const submit = (clearToken = false) =>
+    void run(
+      "save",
+      async () => {
+        const r = await save({
+          data: {
+            token,
+            clearToken,
+            pixelId: pixelId.trim() === status.defaultPixelId ? "" : pixelId.trim(),
+          },
+        });
+        if (r.ok) setToken("");
+        return r;
+      },
+      clearToken ? "Token removido" : "Utmify salva! Vale em até 30 segundos.",
+    );
+
+  return (
+    <Card
+      title="Utmify"
+      status={
+        <Badge ok={status.api ? true : "warn"}>{status.api ? "Pixel + API" : "Só Pixel"}</Badge>
+      }
+    >
+      {!status.table ? (
+        <>
+          <p>
+            Para configurar a Utmify pelo painel, rode este SQL em Lovable → Cloud → SQL editor:
+          </p>
+          <pre className="max-h-40 overflow-auto bg-neutral-900 p-3 text-[11px] text-neutral-100">
+            {APP_SETTINGS_SQL}
+          </pre>
+          <button
+            onClick={() =>
+              void navigator.clipboard
+                .writeText(APP_SETTINGS_SQL)
+                .then(() => toast.success("Copiado!"))
+            }
+            className="flex items-center gap-1.5 border px-3 py-1.5 text-xs font-semibold"
+          >
+            <Copy className="h-3.5 w-3.5" /> Copiar SQL
+          </button>
+        </>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs">
+            Token da API:{" "}
+            {status.tokenSource === "painel" ? (
+              <b>configurado no painel ({status.tokenHint})</b>
+            ) : status.tokenSource === "secret" ? (
+              <b>vindo do secret UTMIFY_API_TOKEN</b>
+            ) : (
+              <b className="text-amber-700">não configurado</b>
+            )}
+          </p>
+          <input
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            type="password"
+            autoComplete="off"
+            placeholder={
+              status.api
+                ? "Novo token (deixe vazio para manter o atual)"
+                : "Cole o token da API da Utmify"
+            }
+            className="w-full border px-2 py-2 text-sm"
+          />
+          <label className="block text-xs text-muted-foreground">
+            ID do Pixel da Utmify
+            <input
+              value={pixelId}
+              onChange={(e) => setPixelId(e.target.value.replace(/[^a-zA-Z0-9]/g, ""))}
+              className="mt-1 w-full border px-2 py-2 text-sm text-foreground"
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              disabled={!!busy}
+              onClick={() => submit()}
+              className="flex-1 bg-neutral-900 py-2 text-xs font-bold text-white uppercase disabled:opacity-50"
+            >
+              {busy === "save" ? "Salvando…" : "Salvar"}
+            </button>
+            {status.api && (
+              <button
+                disabled={!!busy}
+                onClick={() => void run("test", () => runTest(), "Conexão com a Utmify OK!")}
+                className="border px-3 py-2 text-xs font-semibold"
+              >
+                {busy === "test" ? "Testando…" : "Testar conexão"}
+              </button>
+            )}
+            {status.tokenSource === "painel" && (
+              <button
+                disabled={!!busy}
+                onClick={() => {
+                  if (confirm("Remover o token da Utmify?")) submit(true);
+                }}
+                className="border px-3 py-2 text-xs text-red-700"
+              >
+                Remover token
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Vendas vão como "aguardando" ao gerar o PIX e "pago" ao pagar, com UTMs/src/sck. Token:
+        Utmify → Integrações → Webhooks → Credenciais de API → Adicionar credencial. O teste não
+        cria venda.
       </p>
     </Card>
   );

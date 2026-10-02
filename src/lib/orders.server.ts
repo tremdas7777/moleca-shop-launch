@@ -129,7 +129,7 @@ export async function dispatchIntegrations(order: OrderRecord) {
   const { sendUtmifyOrder, readUtmifyToken } = await import("./utmify.server");
   const { sendMetaPurchase, hasCapiPixels } = await import("./meta-capi.server");
   const tasks: Promise<void>[] = [];
-  if (readUtmifyToken()) {
+  if (await readUtmifyToken()) {
     tasks.push(
       sendUtmifyOrder(order).then((r) =>
         logIntegration(order, `utmify_${order.status.toLowerCase()}`, r),
