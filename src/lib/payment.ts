@@ -61,6 +61,9 @@ export const createPixCharge = createServerFn({ method: "POST" })
     if (!shipping) {
       return { ok: false, reason: "invalid_items", error: "Selecione uma forma de frete." };
     }
+    // Garante os preços atuais do painel antes de calcular o total.
+    const { applyStoredPrices } = await import("./prices.server");
+    await applyStoredPrices();
     let amount = shipping.price;
     const lines: { id: string; name: string; quantity: number; unit_price: number }[] = [];
     for (const item of data.items) {

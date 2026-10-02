@@ -456,28 +456,90 @@ function withHalfOff(p: Product): Product {
   return { ...p, price: Math.round(sale * 200) / 100, salePrice: sale };
 }
 
-export const products: Product[] = catalog.map((p) =>
-  withHalfOff({ image: `/produtos/${p.id}.jpg`, ...p }),
-);
+/**
+ * Preços editados no painel admin (aba Preços), por id do produto: preço cobrado de 1 unidade
+ * e preço de cada pacote por quantidade (`offers`, chave = unidades). O preço "de" continua
+ * sendo o dobro do preço cobrado.
+ */
+export type PriceOverride = { price: number; offers?: Record<string, number> };
+export type PriceOverrides = Record<string, PriceOverride>;
+
+/** Preços padrão do catálogo (o que vale sem edição no painel). */
+export const basePrices = catalog.map((p) => ({
+  id: p.id,
+  name: p.name,
+  category: p.category,
+  price: p.salePrice ?? p.price,
+  offers: (p.offers ?? []).filter((o) => o.units > 1),
+}));
+
+function withOverride(p: Product, o: PriceOverride | undefined): Product {
+  if (!o) return p;
+  const { salePrice: _, ...rest } = p;
+  return {
+    ...rest,
+    price: o.price,
+    ...(p.category === "kits" && {
+      price: Math.round(o.price * 200) / 100,
+      salePrice: o.price,
+    }),
+    ...(p.offers && {
+      offers: p.offers.map((of) => ({
+        units: of.units,
+        price: of.units === 1 ? o.price : (o.offers?.[of.units] ?? of.price),
+      })),
+    }),
+  };
+}
+
+function buildProducts(overrides: PriceOverrides) {
+  return catalog.map((p) =>
+    withHalfOff({ image: `/produtos/${p.id}.jpg`, ...withOverride(p, overrides[p.id]) }),
+  );
+}
+
+export const products: Product[] = buildProducts({});
 
 export function bundleId(productId: string, units: number) {
   return units === 1 ? productId : `${productId}-${units}un`;
 }
 
 /** Pacotes de quantidade: não aparecem nas vitrines, só no carrinho e no checkout. */
-export const bundles: Product[] = products.flatMap(({ offers, salePrice: _, ...base }) =>
-  (offers ?? [])
-    .filter((o) => o.units > 1)
-    .map((o) =>
-      withHalfOff({
-        ...base,
-        id: bundleId(base.id, o.units),
-        name: `${base.name} (${o.units} unidades)`,
-        price: o.price,
-        bundleOf: { id: base.id, units: o.units },
-      }),
-    ),
-);
+function buildBundles(list: Product[]) {
+  return list.flatMap(({ offers, salePrice: _, ...base }) =>
+    (offers ?? [])
+      .filter((o) => o.units > 1)
+      .map((o) =>
+        withHalfOff({
+          ...base,
+          id: bundleId(base.id, o.units),
+          name: `${base.name} (${o.units} unidades)`,
+          price: o.price,
+          bundleOf: { id: base.id, units: o.units },
+        }),
+      ),
+  );
+}
+
+export const bundles: Product[] = buildBundles(products);
+
+let appliedOverrides: PriceOverrides = {};
+
+export function currentPriceOverrides() {
+  return appliedOverrides;
+}
+
+/**
+ * Aplica os preços do painel no catálogo. Atualiza as listas no lugar, assim todo o site
+ * (vitrines, carrinho, checkout e a cobrança no servidor) usa o mesmo preço.
+ */
+export function applyPriceOverrides(overrides: PriceOverrides) {
+  if (JSON.stringify(overrides) === JSON.stringify(appliedOverrides)) return;
+  appliedOverrides = overrides;
+  products.splice(0, products.length, ...buildProducts(overrides));
+  bundles.splice(0, bundles.length, ...buildBundles(products));
+  kits.splice(0, kits.length, ...productsByCategory("kits"));
+}
 
 export function findProduct(id: string) {
   return products.find((p) => p.id === id) ?? bundles.find((p) => p.id === id);

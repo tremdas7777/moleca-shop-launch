@@ -19,9 +19,10 @@ import { SiteHeader } from "../components/store/SiteHeader";
 import { Toaster } from "../components/ui/sonner";
 import { CartProvider } from "../lib/cart";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { store } from "../lib/store";
+import { applyPriceOverrides, currentPriceOverrides, store } from "../lib/store";
 import { track } from "../lib/track";
 import { getTrackingPixels } from "../lib/pixels.functions";
+import { getProductPrices } from "../lib/prices.functions";
 import { META_PIXEL_ID, UTMIFY_PIXEL_ID } from "../lib/tracking-config";
 
 function NotFoundComponent() {
@@ -91,12 +92,23 @@ function metaPixelSnippet(ids: string[]) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  loader: async () => {
+  // Preços do painel: aplicados no servidor antes dos loaders das páginas (que leem o catálogo).
+  beforeLoad: async () => {
+    if (typeof window === "undefined") {
+      try {
+        applyPriceOverrides(await getProductPrices());
+      } catch {
+        // ignora: segue com os preços padrão
+      }
+    }
+    return { prices: currentPriceOverrides() };
+  },
+  loader: async ({ context }) => {
     try {
       const pixels = await getTrackingPixels();
-      return { metaPixels: pixels.meta, utmifyPixel: pixels.utmify };
+      return { metaPixels: pixels.meta, utmifyPixel: pixels.utmify, prices: context.prices };
     } catch {
-      return { metaPixels: [META_PIXEL_ID], utmifyPixel: UTMIFY_PIXEL_ID };
+      return { metaPixels: [META_PIXEL_ID], utmifyPixel: UTMIFY_PIXEL_ID, prices: context.prices };
     }
   },
   staleTime: Infinity,
@@ -159,6 +171,8 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // No navegador, aplica os mesmos preços que o servidor usou antes de renderizar as páginas.
+  applyPriceOverrides(Route.useLoaderData().prices);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = pathname.startsWith("/admin");
   // Admin e checkout têm layout próprio, sem cabeçalho/rodapé da loja.

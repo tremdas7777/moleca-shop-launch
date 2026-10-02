@@ -7,6 +7,7 @@ import { Integrations } from "@/components/admin/Integrations";
 import { LiveView } from "@/components/admin/LiveView";
 import { Orders } from "@/components/admin/Orders";
 import { Overview } from "@/components/admin/Overview";
+import { Prices } from "@/components/admin/Prices";
 import { Products, Sources } from "@/components/admin/Reports";
 import { money } from "@/components/admin/shared";
 import { getDashboard } from "@/lib/admin.functions";
@@ -31,6 +32,7 @@ const TABS = [
   ["orders", "Pedidos"],
   ["sources", "Origens / UTMs"],
   ["products", "Produtos"],
+  ["prices", "Preços"],
   ["integrations", "Integrações"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
@@ -198,6 +200,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       <main className="mx-auto max-w-7xl p-4 sm:p-6">
         {tab === "orders" ? (
           <Orders />
+        ) : tab === "prices" ? (
+          <Prices />
         ) : tab === "integrations" ? (
           <Integrations />
         ) : !data ? (

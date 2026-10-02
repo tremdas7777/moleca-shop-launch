@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-export type SettingKey = "utmify_api_token" | "utmify_pixel_id";
+export type SettingKey = "utmify_api_token" | "utmify_pixel_id" | "product_prices";
 
 function settingsDb() {
   return (supabaseAdmin as unknown as SupabaseClient).from("app_settings");

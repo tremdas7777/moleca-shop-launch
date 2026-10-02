@@ -339,3 +339,40 @@ export const saveUtmifySettings = createServerFn({ method: "POST" })
       ? { ok: false as const, error: errors.join(" | ") }
       : { ok: true as const };
   });
+
+/** Preços editados no painel (os padrões vêm de `basePrices` no catálogo). */
+export const getProductPricing = createServerFn({ method: "POST" }).handler(async () => {
+  if (!(await isAdmin())) return denied;
+  const { loadPriceOverrides } = await import("./prices.server");
+  const { settingsTableExists } = await import("./settings.server");
+  return {
+    ok: true as const,
+    overrides: await loadPriceOverrides(),
+    table: await settingsTableExists(),
+  };
+});
+
+const priceValue = z.number().min(0.01).max(1_000_000);
+
+/** Grava todos os preços editados; produto fora da lista volta ao preço padrão. */
+export const saveProductPrices = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      overrides: z.record(
+        z.string().max(120),
+        z.object({ price: priceValue, offers: z.record(z.string().max(4), priceValue).optional() }),
+      ),
+    }),
+  )
+  .handler(async ({ data }) => {
+    if (!(await isAdmin())) return denied;
+    const { basePrices } = await import("./store");
+    const { setSetting } = await import("./settings.server");
+    const ids = new Set(basePrices.map((p) => p.id));
+    const clean = Object.fromEntries(Object.entries(data.overrides).filter(([id]) => ids.has(id)));
+    const error = await setSetting(
+      "product_prices",
+      Object.keys(clean).length ? JSON.stringify(clean) : "",
+    );
+    return error ? { ok: false as const, error } : { ok: true as const };
+  });
