@@ -761,7 +761,7 @@ function Input({
       {...props}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "flex h-[46px] w-full rounded-[0.5rem] border bg-white px-3 py-1 text-[13px] transition-colors placeholder:text-slate-400 focus-visible:border-black focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black",
+        "flex h-[46px] w-full rounded-[0.5rem] border bg-white px-3 py-1 text-base md:text-[13px] transition-colors placeholder:text-slate-400 focus-visible:border-black focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black",
         invalid ? "border-red-500" : "border-[#dedede]",
         className,
       )}

@@ -29,7 +29,7 @@ export function Newsletter() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Seu melhor e-mail"
-            className="h-11 min-w-0 flex-1 bg-white px-4 text-sm text-neutral-900 outline-none"
+            className="h-11 min-w-0 flex-1 bg-white px-4 text-base md:text-sm text-neutral-900 outline-none"
           />
           <button className="h-11 bg-neutral-900 px-6 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800">
             Cadastrar

@@ -81,7 +81,7 @@ function SearchBox({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Busque por produto, linha ou categoria"
-        className="min-w-0 flex-1 bg-transparent px-4 text-sm outline-none placeholder:text-neutral-400"
+        className="min-w-0 flex-1 bg-transparent px-4 text-base md:text-sm outline-none placeholder:text-neutral-400"
       />
       <button
         type="submit"
