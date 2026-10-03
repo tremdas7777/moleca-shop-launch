@@ -127,7 +127,7 @@ export const createPixCharge = createServerFn({ method: "POST" })
         tracking,
         visitor_id: data.tracking?.visitorId ?? null,
       });
-      // Utmify recebe a venda como "aguardando pagamento".
+      // Pedido recém-criado está PENDING: Utmify/Meta só recebem quando for pago.
       if (order) await dispatchIntegrations(order);
       return { ok: true, transactionId: charge.id, amount, pixCode: charge.pix };
     } catch (err) {
